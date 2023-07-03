@@ -1,0 +1,22 @@
+
+
+LS = `ls ../  | grep -F '.go' | perl -pe 's/\n/ /'`
+LS2 = `ls ../ | fgrep .go`
+# LS3 = ${%}
+LS3 = `ls ..`
+ls:V:
+    echo ${LS}
+    echo ${LS2}
+    echo ${LS3}
+
+%.go:
+    echo wildcard building $target
+
+# (.+?).go:
+#     echo $target
+
+expand.go:
+    echo building $target
+
+    
+all:V: ls ${LS}

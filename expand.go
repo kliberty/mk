@@ -138,6 +138,7 @@ func expandSingleQuoted(input string) (string, int) {
 }
 
 var expandSigil_namelist_pattern = regexp.MustCompile(`^\s*([^:]+)\s*:\s*([^%]*)%([^=]*)\s*=\s*([^%]*)%([^%]*)\s*`)
+var special_vars_pattern = regexp.MustCompile(`(stem)|(stem\d+)|(prereq)|(target)`)
 
 // Expand something starting with at '$'.
 func expandSigil(input string, vars map[string][]string) ([]string, int) {
@@ -203,6 +204,9 @@ func expandSigil(input string, vars map[string][]string) ([]string, int) {
 		}
 	}
 
+	if special_vars_pattern.Match([]byte(varname)) {
+		return []string{"$" + input}, len(input)
+	}
 	if isValidVarName(varname) {
 		varvals, ok := vars[varname]
 		if ok {

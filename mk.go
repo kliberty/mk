@@ -322,6 +322,7 @@ func main() {
 	var dryrun bool
 	var shallowrebuild bool
 	var quiet bool
+	var programVersion bool
 
 	flag.StringVar(&directory, "C", "", "directory to change in to")
 	flag.StringVar(&mkfilepath, "f", "mkfile", "use the given file as mkfile")
@@ -335,8 +336,14 @@ func main() {
 	flag.BoolVar(&color, "color", isatty.IsTerminal(os.Stdout.Fd()), "turn color on/off")
 	flag.StringVar(&defaultShell, "shell", "sh -c", "default shell to use if none are specified via $shell")
 	flag.BoolVar(&dontDropArgs, "F", false, "don't drop shell arguments when no further arguments are specified")
+	flag.BoolVar(&programVersion, "V", false, "show program version")
 	// TODO(rjk): P9P mk command line compatability.
 	flag.Parse()
+
+	if programVersion {
+		println("Plan9 mk, go-port")
+		return
+	}
 
 	if directory != "" {
 		err := os.Chdir(directory)
