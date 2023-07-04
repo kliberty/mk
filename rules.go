@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"regexp"
 	"unicode/utf8"
+	"strings"
 )
 
 type attribSet struct {
@@ -20,6 +21,12 @@ type attribSet struct {
 	update          bool // treat the targets as if they were updated
 	virtual         bool // rule is virtual (does not match files)
 	exclusive       bool // don't execute concurrently with any other rule
+}
+
+var tagSets = make(map[string][]string)
+
+func init() {
+	// tagSets["ex"] = []string{"Q"}
 }
 
 // Error parsing an attribute
@@ -127,6 +134,28 @@ func (r *rule) parseAttribs(inputs []string) *attribError {
 				}
 				r.shell = append(r.shell, inputs[i+1:]...)
 				return nil
+			
+			case 'T':
+				pos += 1
+				tagStart := pos
+				for pos < len(input) {
+					if strings.IndexByte("qwertyuiopasdfghjklzxcvbnm1234567890", input[pos]) < 0 {
+						break
+					}
+					pos += 1
+				}
+
+				tag := input[tagStart:pos]
+				tagGroup := tagSets[tag]
+
+				if tagGroup != nil {
+					for _, opt:= range tagGroup {
+						e := r.parseAttribs([]string{opt})
+						if e != nil {
+							return e
+						}
+					}
+				}
 
 			default:
 				return &attribError{c}
@@ -210,6 +239,16 @@ func (rs *ruleSet) executeAssignment(ts []token) *assignmentError {
 		vals = append(vals, expand(input[i], rs.vars, true)...)
 	}
 
+	const tagPrefix = "mktag_"
+	if strings.HasPrefix(assignee, tagPrefix) && len(assignee) > len(tagPrefix) {
+		tagName := assignee[len(tagPrefix):]
+		if tagSets[tagName] == nil {
+			tagSets[tagName] = make([]string, 0)
+		}
+		for _, s := range vals {
+			tagSets[tagName] = append(tagSets[tagName], s)
+		}
+	}
 	rs.vars[assignee] = vals
 
 	return nil

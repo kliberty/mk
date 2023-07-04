@@ -207,6 +207,7 @@ func expandSigil(input string, vars map[string][]string) ([]string, int) {
 	if special_vars_pattern.Match([]byte(varname)) {
 		return []string{"$" + input}, len(input)
 	}
+	
 	if isValidVarName(varname) {
 		varvals, ok := vars[varname]
 		if ok {
