@@ -1,0 +1,10 @@
+# -p must be at least 1: zero would deadlock and negative is meaningless.
+! mk -p 0 -f mkfile
+stderr 'invalid -p value: 0'
+
+! mk -p -1 -f mkfile
+stderr 'invalid -p value: -1'
+
+-- mkfile --
+all:V:
+	echo hi

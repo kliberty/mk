@@ -426,7 +426,16 @@ func main() {
 	flag.Parse()
 
 	// Resolve parallelism: -p flag > $NPROC env > NumCPU
-	if sched.allowed < 0 {
+	pGiven := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "p" {
+			pGiven = true
+		}
+	})
+	if pGiven && sched.allowed < 1 {
+		mkError(fmt.Sprintf("invalid -p value: %d (must be at least 1)", sched.allowed))
+	}
+	if !pGiven {
 		if nproc := os.Getenv("NPROC"); nproc != "" {
 			if n, err := strconv.Atoi(nproc); err == nil && n > 0 {
 				sched.allowed = n
