@@ -235,7 +235,19 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 	}
 
 	uptodate := true
-	if !e.r.attributes.virtual {
+	if e.r.attributes.virtual {
+		// A virtual target has no timestamp, so it is always out of date,
+		// unless a P program is there to compare it with its prerequisites
+		// (as in Plan 9 mk).
+		if len(e.r.command) > 0 && len(prereqs) > 0 {
+			uptodate = !staleByProgram(n, e, prereqs, opts.explain)
+		} else {
+			if opts.explain && n.name != "" { // skip the root dummy node
+				fmt.Fprintf(os.Stderr, "mk: %s is virtual\n", n.name)
+			}
+			uptodate = false
+		}
+	} else {
 		n.updateTimestamp(opts.rebuildall)
 		if !n.exists && required {
 			if opts.explain {
@@ -243,19 +255,7 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 			}
 			uptodate = false
 		} else if len(e.r.command) > 0 && (n.exists || required) {
-			// P attribute: use custom program for staleness checking.
-			// Uses OS environment (not mk vars) because the program is an
-			// external tool (e.g. cmp -s), not a recipe.
-			for i := range prereqs {
-				args := append(append([]string{}, e.r.command[1:]...), n.name, prereqs[i].name)
-				if _, err := subprocess(e.r.command[0], args, os.Environ(), "", false); err != nil {
-					if opts.explain {
-						fmt.Fprintf(os.Stderr, "mk: %s out of date via %s (P attribute)\n", n.name, prereqs[i].name)
-					}
-					uptodate = false
-					break
-				}
-			}
+			uptodate = !staleByProgram(n, e, prereqs, opts.explain)
 		} else if n.exists || required {
 			for i := range prereqs {
 				if n.t.Before(prereqs[i].t) {
@@ -271,11 +271,6 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 				}
 			}
 		}
-	} else {
-		if opts.explain && n.name != "" { // skip the root dummy node
-			fmt.Fprintf(os.Stderr, "mk: %s is virtual\n", n.name)
-		}
-		uptodate = false
 	}
 
 	_, isrebuildtarget := opts.rebuildTargets[n.name]
@@ -350,11 +345,29 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 			}
 		}
 	} else if finalstatus != nodeStatusFailed {
-		if opts.explain && uptodate && !e.r.attributes.virtual {
+		if opts.explain && uptodate {
 			fmt.Fprintf(os.Stderr, "mk: %s is up to date\n", n.name)
 		}
 		finalstatus = nodeStatusNop
 	}
+}
+
+// staleByProgram reports whether a P attribute's program says n is out of date
+// with respect to any of its prerequisites. The program is run as
+// "prog [args] target prereq" for each prerequisite in turn, and a non-zero
+// exit means out of date. It uses the OS environment (not mk variables)
+// because it is an external tool such as cmp -s, not a recipe.
+func staleByProgram(n *node, e *edge, prereqs []*node, explain bool) bool {
+	for _, p := range prereqs {
+		args := append(append([]string{}, e.r.command[1:]...), n.name, p.name)
+		if _, err := subprocess(e.r.command[0], args, os.Environ(), "", false); err != nil {
+			if explain {
+				fmt.Fprintf(os.Stderr, "mk: %s out of date via %s (P attribute)\n", n.name, p.name)
+			}
+			return true
+		}
+	}
+	return false
 }
 
 func mkError(msg string) {

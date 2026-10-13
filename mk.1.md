@@ -322,6 +322,8 @@ P
     `prog target prereq` and should return a null exit status
     if and only if the target is up to date with respect to the prerequisite.
     Date stamps are still propagated in the normal way.
+    With the V attribute, the program alone decides whether the recipe
+    runs; a virtual rule without prerequisites always runs.
     This attribute is not compatible with the S attribute.
 
 Q

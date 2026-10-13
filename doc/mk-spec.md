@@ -278,6 +278,11 @@ target:Pcheck-stale arg: prereq1 prereq2
 For each prerequisite, mk runs `check-stale arg target prereqN`. If the
 command exits **non-zero**, the target is considered out of date.
 
+`P` also works on virtual (`V`) rules, where there is no timestamp to
+compare: the program alone decides whether the recipe runs, and receives the
+target name as a label rather than a file. A virtual rule with `P` but no
+prerequisites always runs, since there is nothing to compare.
+
 #### U (Update)
 
 After a recipe runs, mk re-reads the target's modification time from disk.
