@@ -215,16 +215,19 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 		return
 	}
 
-	// There is exactly one rule among the edges (all edges share the same
-	// rule pointer, set by applyrules; newedge never creates edges with r==nil).
+	// Several rules may contribute prerequisites to a target, but at most one
+	// of them has a recipe (ambiguous() enforces this). Use that rule's edge,
+	// so a rule that only adds prerequisites can't hide the recipe. If no rule
+	// has a recipe, use the last edge. Every edge has a rule (newedge never
+	// creates one without).
 	var prereqs []*node
 	var e *edge
-	for i := range n.prereqs {
-		if n.prereqs[i].r != nil {
-			e = n.prereqs[i]
+	for _, pe := range n.prereqs {
+		if e == nil || e.r.recipe == "" {
+			e = pe
 		}
-		if n.prereqs[i].v != nil {
-			prereqs = append(prereqs, n.prereqs[i].v)
+		if pe.v != nil {
+			prereqs = append(prereqs, pe.v)
 		}
 	}
 
