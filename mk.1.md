@@ -6,7 +6,7 @@
 mk - maintain (make) related files
 
 # SYNOPSIS
-`mk [-f mkfile] [-C dir] [-p N] [-l N] [-w target] [-shell prog] [-s prog] [-color] [-F] [-n] [-t] [-r] [-a] [-k] [-i] [-I] [-e] [-q] [-dot] [target ...] [var=value ...]`
+`mk [-f mkfile] [-C dir] [-p N] [-l N] [-w target] [-shell prog] [-s prog] [-color] [-n] [-t] [-r] [-a] [-k] [-i] [-I] [-e] [-q] [-dot] [target ...] [var=value ...]`
 
 
 # DESCRIPTION
@@ -73,12 +73,11 @@ Options are:
 -color
 :   Force color output on/off.
 
--F
-:   Don't drop shell arguments when no further arguments are specified.
-
 -shell *prog*
 :   Default shell to use if none are specified via `$shell`. Default is `sh -e`.
     This can also be set using the `shell` variable in `mkfile`.
+    Flags are passed to the shell as written. Recipes are supplied on
+    standard input, so the shell command should not include `-c`.
 
 ## The mkfile
 

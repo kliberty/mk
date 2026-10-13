@@ -89,7 +89,6 @@ _See the [man page](mk.1.md) for full documentation, and the
 | `-q` | Quiet: don't print recipes before executing |
 | `-dot` | Print dependency graph in Graphviz dot format |
 | `-color` | Force color output on/off |
-| `-F` | Don't drop shell arguments when no further arguments are specified |
 | `-shell prog` | Default shell (default: `sh -e`) |
 
 Command-line assignments (`var=value`) override the first assignment to that

@@ -1,9 +1,0 @@
-# -F flag preserves shell arguments
-mk -n -F -f mkfile
-cmp stdout expected
-
--- mkfile --
-all:V:
-	echo hello
--- expected --
-all: echo hello

@@ -1,5 +1,5 @@
 # E attribute filters -e from shell args, keeping other args intact
-mk -F -p 1 -f mkfile
+mk -p 1 -f mkfile
 stdout 'after'
 
 -- mkfile --

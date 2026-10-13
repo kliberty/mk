@@ -483,6 +483,10 @@ text on standard input (recipes cannot read their own stdin).
 The default shell is `sh` invoked with `-e` (exit on error). The `E` attribute
 removes the `-e` flag for a specific rule.
 
+Flags in the shell command (from `-shell`, the `shell` variable or the `S`
+attribute) are passed to the shell exactly as written. Because the recipe
+arrives on standard input, the command should not include `-c`.
+
 In Plan 9 mk, the `MKSHELL` variable selects between pluggable shell
 implementations (`sh` and `rc`), each with its own quoting and escaping rules.
 Plan9port added the `S` attribute for per-rule shell override.
@@ -544,7 +548,6 @@ in the mkfile.
 - `-p N` — Set parallelism level (default: `$NPROC` env, then number of CPUs)
 - `-l N` — Max times a specific rule can be applied (default: 1)
 - `-C dir` — Change to `dir` before reading mkfile
-- `-F` — Keep shell flags (e.g., `-e`) even when the shell is invoked with no recipe arguments. By default, flags like `-e` are dropped when the shell has no command arguments, since some shells (like `sh -e`) treat bare flag invocations differently from `sh -e -c 'cmd'`. Use `-F` for shells like `rc` where flags like `-v` are meaningful without arguments.
 - `-I` — Interactive mode: prompt before executing rules
 - `-dot` — Print dependency graph in Graphviz dot format and exit
 - `-color` — Enable/disable color output (default: auto-detect TTY)
@@ -565,7 +568,7 @@ in the mkfile.
 | Regex syntax | Plan 9 `regexp(6)` | Go RE2 (no backreferences or lookaheads) |
 | Parallelism | `$NPROC` env var only | `-p` flag > `$NPROC` env > NumCPU |
 | Additional attributes | — | `X` (exclusive execution) |
-| Additional flags | — | `-p`, `-l`, `-C`, `-F`, `-I`, `-dot`, `-color`, `-shell` |
+| Additional flags | — | `-p`, `-l`, `-C`, `-I`, `-dot`, `-color`, `-shell` |
 
 ## Appendix B: Examples
 

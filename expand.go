@@ -332,13 +332,11 @@ func expandBackQuoted(input string, vars map[string][]string) ([]string, int) {
 	// TODO - might have $shell available by now, but maybe not?
 	// It's not populated, regardless
 
-	var shell string
-	var shellargs []string
-	if len(vars["shell"]) < 1 {
-		shell, shellargs = expandShell(defaultShell, shellargs)
-	} else {
-		shell, shellargs = expandShell(vars["shell"][0], shellargs)
+	shellWords := vars["shell"]
+	if len(shellWords) == 0 {
+		shellWords = []string{defaultShell}
 	}
+	shell, shellargs := shellCommand(shellWords)
 
 	output, ok := subprocess(shell, shellargs, env, cmd, true)
 	if !ok {
@@ -354,22 +352,19 @@ func expandBackQuoted(input string, vars map[string][]string) ([]string, int) {
 	return parts, consumed
 }
 
-// Expand the shell command into cmd, args...
-// Ex. "sh -c", "pwd" becomes sh, [-c, pwd]
-func expandShell(shcmd string, args []string) (string, []string) {
-	var shell string
-	var shellargs []string
-
-	fields := strings.Fields(shcmd)
-	shell = fields[0]
-
-	if len(fields) > 1 {
-		shellargs = fields[1:]
+// shellCommand splits a shell specification into the program to run and its
+// arguments. The first word may hold several space-separated fields, as in the
+// -shell flag ("sh -e") or a quoted S attribute (S"sh -e"); the remaining
+// words are passed through unchanged. Flags are never dropped: recipes are fed
+// to the shell on standard input, so the specification should not include -c.
+func shellCommand(words []string) (string, []string) {
+	var fields []string
+	if len(words) > 0 {
+		fields = strings.Fields(words[0])
 	}
-
-	if len(shellargs) > 0 && (len(args) > 0 || dontDropArgs) {
-		args = append(shellargs, args...)
+	if len(fields) == 0 {
+		mkError("empty shell command")
 	}
-
-	return shell, args
+	args := append(fields[1:len(fields):len(fields)], words[1:]...)
+	return fields[0], args
 }

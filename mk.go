@@ -25,10 +25,6 @@ var (
 	// Default shell to use if none specified via $shell.
 	defaultShell string
 
-	// Do not drop shell arguments when calling with no further arguments
-	// This works around `sh -c commands...` being a thing, but allows the `rc -v commands...` argument-less flags
-	dontDropArgs bool
-
 	// Lock on standard out, messages don't get interleaved too much.
 	mkMsgMutex sync.Mutex
 
@@ -423,7 +419,6 @@ func main() {
 	flag.BoolVar(&dotOutput, "dot", false, "print dependency graph in graphviz dot format and exit")
 	flag.BoolVar(&color, "color", isatty.IsTerminal(os.Stdout.Fd()), "turn color on/off")
 	flag.StringVar(&defaultShell, "shell", "sh -e", "default shell to use if none are specified via $shell")
-	flag.BoolVar(&dontDropArgs, "F", false, "don't drop shell arguments when no further arguments are specified")
 	// TODO(rjk): P9P mk command line compatability.
 	flag.Parse()
 
