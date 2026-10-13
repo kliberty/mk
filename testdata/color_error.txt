@@ -1,7 +1,9 @@
 # Color error output wraps message in red ANSI codes
 ! mk -color -n -f mkfile target
 stderr '\x1b\[31merror:'
-stderr '\x1b\[0m'
+stderr 'error: .*\x1b\[0m$'
+! stderr '^\x1b\[0m'
+! stderr '\n\n'
 
 -- mkfile --
 all:V:

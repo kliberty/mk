@@ -2,7 +2,10 @@
 mk -color -n -f mkfile
 stdout '\x1b\[34m\x1b\[1m\x1b\[4mall\x1b\[0m'
 stdout '\x1b\[34mecho hello'
-stdout '\x1b\[0m'
+# The colour must be reset before the newline, not after it: a newline
+# printed while blue is active can leave colour behind in the terminal.
+stdout 'echo hello\x1b\[0m$'
+! stdout '^\x1b\[0m'
 
 -- mkfile --
 all:V:

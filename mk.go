@@ -365,39 +365,42 @@ func mkError(msg string) {
 }
 
 func mkPrintError(msg string) {
+	msg = "error: " + strings.TrimRight(msg, "\n")
 	if color {
-		os.Stderr.WriteString(ansiTermRed)
+		msg = ansiTermRed + msg + ansiTermDefault
 	}
-	fmt.Fprintf(os.Stderr, "error: %s\n", msg)
-	if color {
-		os.Stderr.WriteString(ansiTermDefault)
-	}
+	// Reset the colour before the newline: a newline printed while a colour
+	// is active can leave that colour behind in the terminal.
+	os.Stderr.WriteString(msg + "\n")
 }
 
 func mkPrintRecipe(target string, recipe string, quiet bool) {
-	mkMsgMutex.Lock()
+	var b strings.Builder
 	if !color {
-		fmt.Printf("%s: ", target)
+		fmt.Fprintf(&b, "%s: ", target)
 	} else {
-		fmt.Printf("%s%s%s → %s",
+		fmt.Fprintf(&b, "%s%s%s → %s",
 			ansiTermBlue+ansiTermBright+ansiTermUnderline, target,
 			ansiTermDefault, ansiTermBlue)
 	}
 	if quiet {
 		if !color {
-			fmt.Println("...")
+			b.WriteString("...")
 		} else {
-			fmt.Println("…")
+			b.WriteString("…")
 		}
 	} else {
-		printIndented(os.Stdout, recipe, len(target)+3)
-		if len(recipe) == 0 {
-			os.Stdout.WriteString("\n")
-		}
+		printIndented(&b, strings.TrimRight(recipe, "\n"), len(target)+3)
 	}
+	// Reset the colour before the final newline: a newline printed while a
+	// colour is active can leave that colour behind in the terminal.
 	if color {
-		os.Stdout.WriteString(ansiTermDefault)
+		b.WriteString(ansiTermDefault)
 	}
+	b.WriteString("\n")
+
+	mkMsgMutex.Lock()
+	os.Stdout.WriteString(b.String())
 	mkMsgMutex.Unlock()
 }
 
