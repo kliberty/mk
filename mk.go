@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"regexp"
 
 	"github.com/mattn/go-isatty"
 )
@@ -363,10 +364,14 @@ func main() {
 	if err != nil {
 		mkError("unable to find mkfile's absolute path")
 	}
+	var special_vars_pattern = regexp.MustCompile(`(stem)|(stem\d+)|(prereq)|(target)`)
 
 	env := make(map[string][]string)
 	for _, elem := range os.Environ() {
 		vals := strings.SplitN(elem, "=", 2)
+		if special_vars_pattern.Match([]byte(vals[0])) {
+			continue
+		}
 		env[vals[0]] = append(env[vals[0]], vals[1])
 	}
 

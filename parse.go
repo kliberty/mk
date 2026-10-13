@@ -387,9 +387,10 @@ func parseRecipe(p *parser, t token) parserStateFun {
 		r.prereqs = append(r.prereqs, exparts...)
 	}
 
-	if t.typ == tokenRecipe {
-		r.recipe = expandRecipeSigils(stripIndentation(t.val, t.col), p.rules.vars)
-	}
+	// if t.typ == tokenRecipe {
+	// 	r.recipe = expandRecipeSigils(stripIndentation(t.val, t.col), p.rules.vars)
+	// }
+	r.recipe = stripIndentation(t.val, t.col)
 
 	p.rules.add(r)
 	p.clear()

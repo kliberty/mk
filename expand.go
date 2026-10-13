@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+	_ "log"
 )
 
 // Expand a word. This includes substituting variables and handling quotes.
@@ -204,18 +205,20 @@ func expandSigil(input string, vars map[string][]string) ([]string, int) {
 		}
 	}
 
-	if special_vars_pattern.Match([]byte(varname)) {
-		return []string{"$" + input}, len(input)
-	}
-	
+	// if special_vars_pattern.Match([]byte(varname)) {
+	// 	return []string{"$" + input}, len(input)
+	// }
+
 	if isValidVarName(varname) {
 		varvals, ok := vars[varname]
 		if ok {
+			// log.Println("Found", varname, "=", varvals, "in vars")
 			return varvals, offset
 		}
 
 		// Find the subsitution in the environment.
 		if varval, ok := os.LookupEnv(varname); ok {
+			// log.Println("Found", varname, "=", varval, "in env")
 			return []string{varval}, offset
 		}
 
@@ -232,6 +235,7 @@ func expandSigil(input string, vars map[string][]string) ([]string, int) {
 
 // Find and expand all sigils.
 func expandSigils(input string, vars map[string][]string) []string {
+	// log.Println("Expanding sigils for:", input)
 	parts := make([]string, 0)
 	expanded := ""
 	for i := 0; i < len(input); {
@@ -259,6 +263,8 @@ func expandSigils(input string, vars map[string][]string) []string {
 
 // Find and expand all sigils in a recipe, producing a flat string.
 func expandRecipeSigils(input string, vars map[string][]string) string {
+	// log.Println("Expanding recipe sigils for:", input)
+
 	expanded := ""
 	for i := 0; i < len(input); {
 		off := strings.IndexAny(input[i:], "$\\")
