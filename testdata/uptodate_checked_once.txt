@@ -1,0 +1,23 @@
+# A prerequisite already found up to date must not be checked again: -e
+# reports it once, and a P program runs once per prerequisite.
+mk -e -p 1 -f mkfile b
+stderr 'mk: b is up to date'
+! stderr '(?s)b is up to date.*b is up to date'
+
+mk -p 1 -f mkfile out
+exec cat calls.log
+stdout -count=1 'out in'
+
+-- mkfile --
+b:
+	touch b
+
+out:Psh count.sh: in
+	cp in out
+-- b --
+-- in --
+-- out --
+-- count.sh --
+#!/bin/sh
+echo "$@" >> calls.log
+exit 0

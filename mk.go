@@ -125,12 +125,10 @@ func mkNodePrereqs(g *graph, prereqs []*node, opts *buildOpts, required bool) no
 		status := nodeStatusDone
 		for i := range prereqs {
 			prereqs[i].mutex.Lock()
-			switch prereqs[i].status {
-			case nodeStatusReady, nodeStatusNop:
-				prereqs[i].mutex.Unlock()
+			visit := prereqs[i].needsVisit(required)
+			prereqs[i].mutex.Unlock()
+			if visit {
 				mkNode(g, prereqs[i], opts, required)
-			default:
-				prereqs[i].mutex.Unlock()
 			}
 			prereqs[i].mutex.Lock()
 			s := prereqs[i].status
@@ -148,11 +146,11 @@ func mkNodePrereqs(g *graph, prereqs []*node, opts *buildOpts, required bool) no
 	// build prereqs that need building
 	for i := range prereqs {
 		prereqs[i].mutex.Lock()
-		switch prereqs[i].status {
-		case nodeStatusReady, nodeStatusNop:
+		if prereqs[i].needsVisit(required) {
 			go mkNode(g, prereqs[i], opts, required)
-			fallthrough
-		case nodeStatusStarted:
+			prereqs[i].listeners = append(prereqs[i].listeners, prereqstat)
+			pending++
+		} else if prereqs[i].status == nodeStatusStarted {
 			prereqs[i].listeners = append(prereqs[i].listeners, prereqstat)
 			pending++
 		}
@@ -188,9 +186,9 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 	if n.status != nodeStatusReady && n.status != nodeStatusNop {
 		n.mutex.Unlock()
 		return
-	} else {
-		n.status = nodeStatusStarted
 	}
+	n.status = nodeStatusStarted
+	n.checkedRequired = n.checkedRequired || required
 	n.mutex.Unlock()
 
 	// when finished, notify the listeners
