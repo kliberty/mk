@@ -45,6 +45,7 @@ var (
 type scheduler struct {
 	allowed   int
 	running   int
+	inUse     []bool // inUse[i] is true while slot i ($nproc = i) is taken
 	cond      *sync.Cond
 	exclusive sync.Mutex
 }
@@ -65,20 +66,28 @@ type buildOpts struct {
 
 // Wait until there is an available subprocess slot.
 // Returns the 0-based slot number assigned to this job.
+// reserve waits for a free job slot, takes the lowest-numbered one and
+// returns its number, which the recipe sees as $nproc.
 func (s *scheduler) reserve() int {
 	s.cond.L.Lock()
 	for s.running >= s.allowed {
 		s.cond.Wait()
 	}
-	slot := s.running
+	slot := 0
+	for s.inUse[slot] {
+		slot++
+	}
+	s.inUse[slot] = true
 	s.running++
 	s.cond.L.Unlock()
 	return slot
 }
 
 // Free up another subprocess to run.
-func (s *scheduler) finish() {
+// finish releases a slot taken by reserve.
+func (s *scheduler) finish(slot int) {
 	s.cond.L.Lock()
+	s.inUse[slot] = false
 	s.running--
 	s.cond.Signal()
 	s.cond.L.Unlock()
@@ -341,7 +350,7 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 			if e.r.attributes.exclusive {
 				sched.finishExclusive()
 			} else {
-				sched.finish()
+				sched.finish(nproc)
 			}
 		}
 	} else if finalstatus != nodeStatusFailed {
@@ -466,6 +475,7 @@ func main() {
 		}
 	}
 	sched.cond = sync.NewCond(&sync.Mutex{})
+	sched.inUse = make([]bool, sched.allowed)
 
 	if directory != "" {
 		err := os.Chdir(directory)
