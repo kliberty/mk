@@ -1,7 +1,8 @@
-# D attribute: delete target file when recipe fails
+# D attribute: delete target file when recipe fails, and say so
 cp target target
 ! mk -a -p 1 -f mkfile target
 ! exists target
+stderr 'recipe for ''target'' failed: exit status 1, deleted ''target'''
 
 -- mkfile --
 target:D:

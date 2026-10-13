@@ -131,8 +131,8 @@ func parsePipeInclude(p *parser, t token) parserStateFun {
 		}
 
 		// TODO(rjk): determine what env should be in comparison with p9p.
-		output, success := subprocess(args[0], args[1:], nil, "", true)
-		if !success {
+		output, err := subprocess(args[0], args[1:], nil, "", true)
+		if err != nil {
 			p.basicErrorAtToken("subprocess include failed", t)
 		}
 

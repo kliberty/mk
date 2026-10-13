@@ -1,7 +1,15 @@
-# Recipe failure exits non-zero
+# A failing recipe makes mk exit non-zero and says which target failed and
+# how, even when the recipe's own error output is discarded.
 ! mk -p 1 -f mkfile
 stdout 'all: false'
+stderr 'recipe for ''all'' failed: exit status 1'
+
+! mk -p 1 -f mkfile quiet
+stderr 'recipe for ''quiet'' failed: exit status 3'
 
 -- mkfile --
 all:V:
 	false
+
+quiet:V:
+	sh -c 'echo hidden >&2; exit 3' 2> /dev/null

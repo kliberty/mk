@@ -250,8 +250,7 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 			// external tool (e.g. cmp -s), not a recipe.
 			for i := range prereqs {
 				args := append(append([]string{}, e.r.command[1:]...), n.name, prereqs[i].name)
-				_, ok := subprocess(e.r.command[0], args, os.Environ(), "", false)
-				if !ok {
+				if _, err := subprocess(e.r.command[0], args, os.Environ(), "", false); err != nil {
 					if opts.explain {
 						fmt.Fprintf(os.Stderr, "mk: %s out of date via %s (P attribute)\n", n.name, prereqs[i].name)
 					}
@@ -324,13 +323,19 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 				nproc = sched.reserve()
 			}
 
-			if !dorecipe(n, e, opts, nproc) {
+			if err := dorecipe(n, e, opts, nproc); err != nil {
 				finalstatus = nodeStatusFailed
 				opts.failed.Store(true)
+				msg := fmt.Sprintf("recipe for '%s' failed: %v", n.name, err)
 				// D attribute: delete the target file when the recipe fails.
 				if e.r.attributes.delFailed {
-					os.Remove(n.name)
+					if os.Remove(n.name) == nil {
+						msg += fmt.Sprintf(", deleted '%s'", n.name)
+					}
 				}
+				mkMsgMutex.Lock()
+				mkPrintError(msg)
+				mkMsgMutex.Unlock()
 			}
 			// U attribute: force timestamp so dependents see the target as updated
 			// even if the recipe didn't modify the file.

@@ -338,8 +338,8 @@ func expandBackQuoted(input string, vars map[string][]string) ([]string, int) {
 	}
 	shell, shellargs := shellCommand(shellWords)
 
-	output, ok := subprocess(shell, shellargs, env, cmd, true)
-	if !ok {
+	output, err := subprocess(shell, shellargs, env, cmd, true)
+	if err != nil {
 		mkError(fmt.Sprintf("backtick expansion failed: `%s`", cmd))
 	}
 
