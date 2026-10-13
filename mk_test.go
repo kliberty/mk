@@ -200,6 +200,27 @@ outer:
 	}
 }
 
+// An mk run from another mk's recipe inherits $stem, $target, etc. in its
+// environment. They must not override the values for its own recipes.
+func TestRecipeVarsNotInherited(t *testing.T) {
+	inherited := []string{"TEST_MAIN=mk",
+		"stem=bob", "stem1=bob1", "target=hello-bob", "prereq=bobfile"}
+	for target, want := range map[string]string{
+		"bye-steve": "bye-steve: echo Bye steve bye-steve\n",
+		"plain":     "plain: echo plain $stem\n",
+	} {
+		cmd := exec.Command(os.Args[0], "-n", "-f", "testdata/test18.mk", target)
+		cmd.Env = append(os.Environ(), inherited...)
+		got, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("mk %s failed: %v", target, err)
+		}
+		if diff := cmp.Diff(want, string(got)); diff != "" {
+			t.Errorf("mk %s: mismatch (-want +got):\n%s", target, diff)
+		}
+	}
+}
+
 func TestMain(m *testing.M) {
 	switch os.Getenv("TEST_MAIN") {
 	case "mk":

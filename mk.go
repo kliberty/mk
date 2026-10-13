@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -357,6 +358,8 @@ func main() {
 		mkError("unable to find mkfile's absolute path")
 	}
 
+	clearInheritedRecipeVars()
+
 	env := make(map[string][]string)
 	for _, elem := range os.Environ() {
 		vals := strings.SplitN(elem, "=", 2)
@@ -429,3 +432,21 @@ func main() {
 }
 
 var GlobalMkState map[string][]string
+
+// Names of the variables mk sets itself when it runs a recipe ($target,
+// $stem, $stem1, $prereq, $prereq1, ...).
+var recipeVarPattern = regexp.MustCompile(`^(target|stem[0-9]*|prereq[0-9]*)$`)
+
+// clearInheritedRecipeVars removes recipe variables from the process
+// environment. mk exports them to every recipe, so an mk started from a
+// recipe inherits its parent's values. Left in place, they would be
+// expanded into this mkfile's recipes at parse time, before the rules that
+// should set them have matched, e.g. $stem would be the parent's stem.
+func clearInheritedRecipeVars() {
+	for _, elem := range os.Environ() {
+		name := strings.SplitN(elem, "=", 2)[0]
+		if recipeVarPattern.MatchString(name) {
+			os.Unsetenv(name)
+		}
+	}
+}
