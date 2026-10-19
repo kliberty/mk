@@ -1,0 +1,348 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "mk",
+  "scopeName": "source.mk",
+  "patterns": [
+    {
+      "include": "#recipe"
+    },
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#include"
+    },
+    {
+      "include": "#assignment"
+    },
+    {
+      "include": "#rule"
+    }
+  ],
+  "repository": {
+    "recipe": {
+      "name": "meta.recipe.mk",
+      "begin": "^(?=[ \\t]+\\S)",
+      "while": "^(?=[ \\t]|[ \\t]*$)",
+      "patterns": [
+        {
+          "include": "#recipe-escape"
+        },
+        {
+          "include": "#variables"
+        },
+        {
+          "include": "source.shell"
+        }
+      ]
+    },
+    "recipe-escape": {
+      "match": "\\\\\\$",
+      "name": "constant.character.escape.dollar.mk"
+    },
+    "comment": {
+      "match": "#.*$",
+      "name": "comment.line.number-sign.mk"
+    },
+    "include": {
+      "patterns": [
+        {
+          "name": "meta.include.pipe.mk",
+          "begin": "^(<\\|)",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.control.import.pipe.mk"
+            }
+          },
+          "end": "(?<![\\\\\\n])$",
+          "patterns": [
+            {
+              "include": "#line-continuation"
+            },
+            {
+              "include": "#strings"
+            },
+            {
+              "include": "#variables"
+            }
+          ]
+        },
+        {
+          "name": "meta.include.file.mk",
+          "begin": "^(<)",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.control.import.mk"
+            }
+          },
+          "end": "(?<![\\\\\\n])$",
+          "contentName": "string.unquoted.include.mk",
+          "patterns": [
+            {
+              "include": "#line-continuation"
+            },
+            {
+              "include": "#variables"
+            },
+            {
+              "include": "#strings"
+            }
+          ]
+        }
+      ]
+    },
+    "assignment": {
+      "name": "meta.assignment.mk",
+      "begin": "^([A-Za-z_][A-Za-z0-9_]*)[ \\t]*(=)(?:(U)(=))?",
+      "beginCaptures": {
+        "1": {
+          "name": "variable.other.definition.mk"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.mk"
+        },
+        "3": {
+          "name": "storage.modifier.attribute.mk"
+        },
+        "4": {
+          "name": "keyword.operator.assignment.mk"
+        }
+      },
+      "end": "(?<![\\\\\\n])$",
+      "patterns": [
+        {
+          "include": "#value"
+        }
+      ]
+    },
+    "rule": {
+      "name": "meta.rule.mk",
+      "begin": "^([^\\s#<:=][^:#=]*?)[ \\t]*(?=:)",
+      "beginCaptures": {
+        "1": {
+          "name": "entity.name.function.target.mk",
+          "patterns": [
+            {
+              "include": "#variables"
+            },
+            {
+              "include": "#strings"
+            },
+            {
+              "include": "#pattern-chars"
+            }
+          ]
+        }
+      },
+      "end": "(?<![\\\\\\n])$",
+      "patterns": [
+        {
+          "match": "(:)([^:\\n]*)(:)",
+          "captures": {
+            "1": {
+              "name": "punctuation.separator.rule.mk"
+            },
+            "2": {
+              "name": "storage.modifier.attribute.mk",
+              "patterns": [
+                {
+                  "include": "#variables"
+                }
+              ]
+            },
+            "3": {
+              "name": "punctuation.separator.rule.mk"
+            }
+          }
+        },
+        {
+          "match": ":",
+          "name": "punctuation.separator.rule.mk"
+        },
+        {
+          "include": "#value"
+        },
+        {
+          "include": "#pattern-chars"
+        }
+      ]
+    },
+    "value": {
+      "patterns": [
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#line-continuation"
+        },
+        {
+          "include": "#strings"
+        },
+        {
+          "include": "#variables"
+        }
+      ]
+    },
+    "pattern-chars": {
+      "match": "[%&]",
+      "name": "keyword.other.placeholder.mk"
+    },
+    "line-continuation": {
+      "match": "\\\\$",
+      "name": "constant.character.escape.line-continuation.mk"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.mk",
+          "begin": "'",
+          "end": "'",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.mk"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.mk"
+            }
+          }
+        },
+        {
+          "name": "string.quoted.double.mk",
+          "begin": "\"",
+          "end": "\"",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.mk"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.mk"
+            }
+          },
+          "patterns": [
+            {
+              "match": "\\\\.",
+              "name": "constant.character.escape.mk"
+            },
+            {
+              "include": "#variables"
+            }
+          ]
+        },
+        {
+          "name": "string.interpolated.backtick.mk",
+          "begin": "`\\{",
+          "end": "\\}",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.mk"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.mk"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#variables"
+            }
+          ]
+        },
+        {
+          "name": "string.interpolated.backtick.mk",
+          "begin": "`",
+          "end": "`",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.mk"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.mk"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#variables"
+            }
+          ]
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "match": "\\$\\$",
+          "name": "constant.character.escape.dollar.mk"
+        },
+        {
+          "match": "(\\$\\{)([A-Za-z_][A-Za-z0-9_]*)(:)([^}]*)(\\})",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.variable.begin.mk"
+            },
+            "2": {
+              "name": "variable.other.mk"
+            },
+            "3": {
+              "name": "punctuation.separator.substitution.mk"
+            },
+            "4": {
+              "name": "string.other.substitution.mk",
+              "patterns": [
+                {
+                  "include": "#pattern-chars"
+                }
+              ]
+            },
+            "5": {
+              "name": "punctuation.definition.variable.end.mk"
+            }
+          }
+        },
+        {
+          "match": "(\\$\\{)([^}]*)(\\})",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.variable.begin.mk"
+            },
+            "2": {
+              "name": "variable.other.mk"
+            },
+            "3": {
+              "name": "punctuation.definition.variable.end.mk"
+            }
+          }
+        },
+        {
+          "match": "(\\$)([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.variable.mk"
+            },
+            "2": {
+              "name": "variable.other.mk"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "injections": {
+    "L:meta.recipe.mk -comment": {
+      "patterns": [
+        {
+          "include": "#recipe-escape"
+        },
+        {
+          "include": "#variables"
+        }
+      ]
+    }
+  }
+}

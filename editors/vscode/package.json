@@ -1,0 +1,59 @@
+{
+  "name": "mk-plan9",
+  "displayName": "mk (Plan 9 mkfiles)",
+  "description": "Syntax highlighting for mkfiles used by Plan 9 mk and its Go port.",
+  "version": "0.1.0",
+  "publisher": "kliberty",
+  "license": "BSD-2-Clause",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "mk",
+        "aliases": [
+          "mk",
+          "mkfile"
+        ],
+        "filenames": [
+          "mkfile",
+          "mkhdr",
+          "mkone",
+          "mkmany",
+          "mklib",
+          "mksyslib"
+        ],
+        "filenamePatterns": [
+          "*.mkfile",
+          "mkfile.*"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "mk",
+        "scopeName": "source.mk",
+        "path": "./syntaxes/mk.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.recipe.mk": "shellscript"
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "test": "node test/tokenize.mjs"
+  },
+  "devDependencies": {
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kliberty/mk"
+  }
+}
