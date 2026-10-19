@@ -261,6 +261,22 @@ recipe is executed.  For example:
 
 will compile b.c into foo, if a.c is newer than foo.
 
+`mk` substitutes variable references in a recipe itself, before
+passing it to the shell (or the `S` program), using its own variables
+and its environment. A reference `mk` cannot resolve is left for the
+shell. As a result, a variable that the recipe sets for itself can be
+overridden by an environment variable of the same name. Write
+references to such variables as `$$name` (or `\$name`), which `mk`
+passes to the shell as `$name`:
+
+    clean:V:
+            dir=build
+            rm -rf $$dir
+
+Here `$$dir` always refers to the shell variable set on the line
+before. A plain `$dir` would be replaced by the value of `dir` in
+mk's environment, if there is one.
+
 ### Including other files
 
 The contents of other files can be included using `<`.

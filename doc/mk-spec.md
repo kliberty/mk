@@ -93,6 +93,11 @@ Two forms:
 
 In recipes, `\$` also produces a literal `$` (shell escaping).
 
+Because mk substitutes recipe variables before the shell runs (see §3.2), a
+variable the recipe sets for itself must be written `$$name` (or `\$name`).
+A plain `$name` is replaced by mk's value for `name`, including one taken
+from the environment, which then overrides the recipe's own assignment.
+
 If a variable is not defined in mk's variable table or the environment, the
 reference is preserved literally (e.g., `$undefined` remains `$undefined` in
 the output). This differs from make, which expands undefined variables to the
@@ -135,7 +140,8 @@ Variable values have this precedence (highest first):
 ### 3.2 Evaluation Timing
 
 - Assignment values are evaluated **when read** (eagerly).
-- Recipe bodies are evaluated **when executed** (lazily, by the shell).
+- Recipe bodies are evaluated **when executed** (lazily): mk substitutes
+  variables just before running the recipe, then hands it to the shell.
 - This means the last assignment wins for recipes, but earlier assignments
   affect subsequent rule headers.
 
