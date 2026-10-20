@@ -22,6 +22,10 @@ contain meta-rules that define actions for updating implicit
 targets.  If no target is specified, the target of the first
 rule (not meta-rule) in mkfile is updated.
 
+Options may be given before, after or between targets and assignments,
+so `mk all -n` is the same as `mk -n all`. The argument `--` ends the
+options: everything after it is a target or assignment, even if it
+begins with `-`.
 
 Options are:
 

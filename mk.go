@@ -397,6 +397,29 @@ func mkPrintRecipe(target string, recipe string, quiet bool) {
 	mkMsgMutex.Unlock()
 }
 
+// parseArgs parses the flags in args and returns the remaining arguments
+// (targets and var=value assignments). As with GNU tools, flags may appear
+// anywhere: before, after or between the other arguments. "--" ends flag
+// parsing, so everything after it is returned as is, even if it looks like
+// a flag.
+func parseArgs(fs *flag.FlagSet, args []string) []string {
+	var rest []string
+	for {
+		// Parse consumes leading flags, and a "--", and stops at the first
+		// other argument.
+		fs.Parse(args)
+		remaining := fs.Args()
+		if consumed := len(args) - len(remaining); consumed > 0 && args[consumed-1] == "--" {
+			return append(rest, remaining...)
+		}
+		if len(remaining) == 0 {
+			return rest
+		}
+		rest = append(rest, remaining[0])
+		args = remaining[1:]
+	}
+}
+
 func main() {
 	var directory string
 	var mkfilepath string
@@ -425,7 +448,7 @@ func main() {
 	flag.StringVar(&defaultShell, "shell", "sh -e", "default shell to use if none are specified via $shell")
 	flag.BoolVar(&dontDropArgs, "F", false, "don't drop shell arguments when no further arguments are specified")
 	// TODO(rjk): P9P mk command line compatability.
-	flag.Parse()
+	args := parseArgs(flag.CommandLine, os.Args[1:])
 
 	// Resolve parallelism: -p flag > $NPROC env > NumCPU
 	if sched.allowed < 0 {
@@ -472,7 +495,7 @@ func main() {
 
 	// Separate command-line variable overrides (VAR=value) from targets.
 	var targets []string
-	for _, arg := range flag.Args() {
+	for _, arg := range args {
 		if i := strings.Index(arg, "="); i > 0 && isValidVarName(arg[:i]) {
 			rs.vars[arg[:i]] = expand(arg[i+1:], rs.vars, true)
 		} else {

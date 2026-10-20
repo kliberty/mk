@@ -526,6 +526,14 @@ Non-flag arguments to mk are either variable overrides or targets:
 If no targets are specified, mk builds the targets of the first non-metarule
 in the mkfile.
 
+Flags may appear before, after or between these arguments: `mk all -n` is
+the same as `mk -n all`. The argument `--` ends flag parsing; every argument
+after it is an override or target, even one beginning with `-`.
+
+**[DIVERGENCE]** Plan 9 mk stops reading flags at the first non-flag
+argument, so there `mk all -n` tries to build a target named `-n`. We follow
+the GNU convention of accepting flags anywhere.
+
 ### 12.2 Flags
 
 | Flag | Effect |
@@ -564,6 +572,7 @@ in the mkfile.
 | Recipe display | `front()` truncates to 5 fields | No truncation |
 | Regex syntax | Plan 9 `regexp(6)` | Go RE2 (no backreferences or lookaheads) |
 | Parallelism | `$NPROC` env var only | `-p` flag > `$NPROC` env > NumCPU |
+| Flag placement | Flags must precede targets | Flags anywhere; `--` ends flags |
 | Additional attributes | — | `X` (exclusive execution) |
 | Additional flags | — | `-p`, `-l`, `-C`, `-F`, `-I`, `-dot`, `-color`, `-shell` |
 

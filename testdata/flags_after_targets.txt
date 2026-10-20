@@ -1,0 +1,34 @@
+# Options may appear anywhere on the command line, GNU style: before, after
+# or between targets and var=value assignments. "--" ends option parsing.
+
+# a flag after the target
+mk -p 1 b -n
+stdout '^b: echo built b$'
+! stdout '^built'
+
+# flags between targets, and a flag with a value after them
+mk a -n b -f mkfile
+stdout '^a: echo built a$'
+stdout '^b: echo built b$'
+! stdout '^built'
+
+# an assignment among flags and targets
+mk v -p 1 NAME=x -n
+stdout '^v: echo value x$'
+
+# after --, everything is a target, even if it looks like a flag
+mk -p 1 -- -odd
+stdout '^built -odd$'
+! mk -p 1 -- b -n
+stderr 'don''t know how to make -n'
+
+-- mkfile --
+a b:V:
+	echo built $target
+
+NAME = default
+v:V:
+	echo value $NAME
+
+-odd:V:
+	echo built $target

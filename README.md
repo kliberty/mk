@@ -69,6 +69,9 @@ _See the [man page](mk.1.md) for full documentation, and the
 
 `mk [options] [target ...] [var=value ...]`
 
+Options can also go after or between targets (`mk all -n`); `--` ends
+the options.
+
 ### Options
 
 | Flag | Description |
