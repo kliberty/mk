@@ -13,24 +13,24 @@ SC = VQ
 all:V: prog
 
 prog: $OBJ
-	$CC -o $target $prereq
+    $CC -o $target $prereq
 
 %.o: %.c
-	$CC $CFLAGS -c $stem.c
+    $CC $CFLAGS -c $stem.c
 
 quiet:$SC:
-	echo "only the result is shown"
+    echo "only the result is shown"
 
 clean:VE:
-	dir=build
-	rm -rf $$dir *.o   # remove build output
+    dir=build
+    rm -rf $$dir *.o   # remove build output
 
 deps: a \
-	b c
+    b c
 
 report:VSpython3:
-	print("hello from python")
+    print("hello from python")
 
 out%: Dockerfile
-	rm -rf $target
-	docker build --output $target -f $prereq1 .
+    rm -rf $target
+    docker build --output $target -f $prereq1 .
