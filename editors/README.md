@@ -48,9 +48,13 @@ to files IntelliJ would otherwise treat as plain text or unknown, and it
 recognises a bundle's files by exact name or by extension only, so `mkfile`,
 `mkhdr` and similar names and `*.mkfile` work, but `mkfile.*` does not. To
 add another name, add it to `filenames` (or an extension to `extensions`) in
-`editors/vscode/package.json`, then remove and re-add the bundle. A file
-already opened as plain text may need "Override File Type" → "Files
-supported via TextMate bundles".
+`editors/vscode/package.json`, then remove and re-add the bundle.
+
+The TextMate type cannot be chosen by hand: IntelliJ leaves it out of
+"Override File Type" and similar menus, because it decides for itself which
+files it handles. If you previously overrode an mkfile to another type
+(Plain text, say), use "Revert File Type Override" on it so the bundle can
+claim it.
 
 Recipes use the IDE's bundled shell grammar. If they appear uncoloured,
 check that the shell bundle is enabled in the same TextMate Bundles list.
