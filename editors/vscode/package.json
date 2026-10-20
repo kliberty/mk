@@ -19,6 +19,9 @@
           "mk",
           "mkfile"
         ],
+        "extensions": [
+          ".mkfile"
+        ],
         "filenames": [
           "mkfile",
           "mkhdr",
@@ -28,7 +31,6 @@
           "mksyslib"
         ],
         "filenamePatterns": [
-          "*.mkfile",
           "mkfile.*"
         ],
         "configuration": "./language-configuration.json"
