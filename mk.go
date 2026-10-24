@@ -432,6 +432,56 @@ func mkPrintRecipe(target string, recipe string, quiet bool) {
 	mkMsgMutex.Unlock()
 }
 
+// parseArgs parses the flags in args. It returns the flag arguments as
+// written (including flag values, such as the file in "-f file") and the
+// remaining arguments (targets and var=value assignments). As with GNU
+// tools, flags may appear anywhere: before, after or between the other
+// arguments. "--" ends flag parsing, so everything after it is a remaining
+// argument, even if it looks like a flag; "--" itself is in neither list.
+func parseArgs(fs *flag.FlagSet, args []string) (flags, rest []string) {
+	for {
+		// Parse consumes leading flags, and a "--", and stops at the first
+		// other argument.
+		fs.Parse(args)
+		remaining := fs.Args()
+		consumed := args[:len(args)-len(remaining)]
+		if n := len(consumed); n > 0 && consumed[n-1] == "--" {
+			return append(flags, consumed[:n-1]...), append(rest, remaining...)
+		}
+		flags = append(flags, consumed...)
+		if len(remaining) == 0 {
+			return flags, rest
+		}
+		rest = append(rest, remaining[0])
+		args = remaining[1:]
+	}
+}
+
+// localFlags are the flags that describe only the current run (which mkfile
+// to read, which directory to run in, which target to pretend changed), so
+// they are left out of $MKFLAGS. GNU make likewise does not pass on its -f,
+// -C and -W.
+var localFlags = map[string]bool{"f": true, "C": true, "w": true}
+
+// propagatedFlags returns flagArgs (flag arguments as returned by parseArgs)
+// without the localFlags and their values. These flags all take a value,
+// given either in the same argument ("-f=file") or in the next ("-f file").
+func propagatedFlags(flagArgs []string) []string {
+	var out []string
+	for i := 0; i < len(flagArgs); i++ {
+		name := strings.TrimLeft(flagArgs[i], "-")
+		name, _, hasValue := strings.Cut(name, "=")
+		if localFlags[name] {
+			if !hasValue {
+				i++ // skip the separate value
+			}
+			continue
+		}
+		out = append(out, flagArgs[i])
+	}
+	return out
+}
+
 func main() {
 	var directory string
 	var mkfilepath string
@@ -460,7 +510,7 @@ func main() {
 	flag.BoolVar(&color, "color", isatty.IsTerminal(os.Stdout.Fd()), "turn color on/off")
 	flag.StringVar(&defaultShell, "shell", "sh -e", "default shell to use if none are specified via $shell")
 	// TODO(rjk): P9P mk command line compatability.
-	flag.Parse()
+	flagArgs, args := parseArgs(flag.CommandLine, os.Args[1:])
 
 	// Resolve parallelism: -p flag > $NPROC env > NumCPU
 	pGiven := false
@@ -508,6 +558,23 @@ func main() {
 		env[vals[0]] = append(env[vals[0]], vals[1])
 	}
 
+	// Separate command-line variable overrides (VAR=value) from targets.
+	var assignments, targets []string
+	for _, arg := range args {
+		if i := strings.Index(arg, "="); i > 0 && isValidVarName(arg[:i]) {
+			assignments = append(assignments, arg)
+		} else {
+			targets = append(targets, arg)
+		}
+	}
+
+	// As in Plan 9 mk, $MKFLAGS holds the flags followed by the assignments
+	// and $MKARGS the targets given on the command line. They are set before
+	// the mkfile is read, so its assignments can use them, and replace any
+	// values inherited from a parent mk.
+	env["MKFLAGS"] = append(propagatedFlags(flagArgs), assignments...)
+	env["MKARGS"] = append([]string{}, targets...)
+
 	rs := parse(string(input), mkfilepath, abspath, env)
 	if quiet {
 		for i := range rs.rules {
@@ -515,14 +582,10 @@ func main() {
 		}
 	}
 
-	// Separate command-line variable overrides (VAR=value) from targets.
-	var targets []string
-	for _, arg := range flag.Args() {
-		if i := strings.Index(arg, "="); i > 0 && isValidVarName(arg[:i]) {
-			rs.vars[arg[:i]] = expand(arg[i+1:], rs.vars, true)
-		} else {
-			targets = append(targets, arg)
-		}
+	// Apply command-line variable overrides.
+	for _, arg := range assignments {
+		i := strings.Index(arg, "=")
+		rs.vars[arg[:i]] = expand(arg[i+1:], rs.vars, true)
 	}
 
 	// build the first non-meta rule in the makefile, if none are given explicitly

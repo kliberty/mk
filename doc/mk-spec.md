@@ -583,6 +583,27 @@ Non-flag arguments to mk are either variable overrides or targets:
 If no targets are specified, mk builds the targets of the first non-metarule
 in the mkfile.
 
+mk sets `$MKFLAGS` to the flags it was called with, as written (values
+included, `--` excluded), followed by the variable overrides, and `$MKARGS`
+to the targets given on the command line (empty if none). Both are set
+before the mkfile is read, replacing any values inherited from a parent mk,
+so `mk $MKFLAGS` in a recipe repeats the current flags and overrides.
+
+The flags `-f`, `-C` and `-w` and their values are left out of `$MKFLAGS`,
+because they apply only to the current run: which mkfile to read, where to
+run, and what to pretend changed. GNU make leaves out its `-f`, `-C` and `-W`
+for the same reason.
+
+**[DIVERGENCE]** Plan 9 mk includes `-f file` in `$MKFLAGS`.
+
+Flags may appear before, after or between these arguments: `mk all -n` is
+the same as `mk -n all`. The argument `--` ends flag parsing; every argument
+after it is an override or target, even one beginning with `-`.
+
+**[DIVERGENCE]** Plan 9 mk stops reading flags at the first non-flag
+argument, so there `mk all -n` tries to build a target named `-n`. We follow
+the GNU convention of accepting flags anywhere.
+
 ### 12.2 Flags
 
 | Flag | Effect |
@@ -622,6 +643,7 @@ in the mkfile.
 | Recipe display | `front()` truncates to 5 fields | No truncation |
 | Regex syntax | Plan 9 `regexp(6)` | Go RE2 (no backreferences or lookaheads) |
 | Parallelism | `$NPROC` env var only | `-p` flag > `$NPROC` env > NumCPU |
+| Flag placement | Flags must precede targets | Flags anywhere; `--` ends flags |
 | Additional attributes | — | `X` (exclusive execution), `F` (recipe as a file) |
 | Additional flags | — | `-p`, `-l`, `-C`, `-I`, `-dot`, `-color`, `-shell`, `-keep-temp-files` |
 

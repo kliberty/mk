@@ -1,0 +1,29 @@
+# $MKFLAGS holds the flags mk was called with (values included, except for
+# -f, -C and -w) followed by any var=value assignments; $MKARGS holds the targets named on the command
+# line. Both are set before the mkfile is read, so assignments can use them.
+mk -n -p 1 show other X=1
+stdout '^show: echo flags=-n -p 1 X=1 args=show other saved=-n -p 1 X=1$'
+
+# flags after targets are collected too; "--" itself is not a flag
+mk show -p 1 -n -- -odd
+stdout '^show: echo flags=-p 1 -n args=show -odd saved=-p 1 -n$'
+
+# -f, -C and -w (and their values) describe this run only, so like GNU
+# make's -f, -C and -W they are not passed on, in any spelling
+mk -f mkfile -C . -w other -n show
+stdout '^show: echo flags=-n args=show saved=-n$'
+mk -f=mkfile --C=. -n -w=other show -p 1
+stdout '^show: echo flags=-n -p 1 args=show saved=-n -p 1$'
+
+# with no flags or targets, both are empty rather than left unexpanded
+mk
+stdout '^flags= args= saved=$'
+
+-- mkfile --
+SAVED = $MKFLAGS
+
+show:V:
+	echo flags=$MKFLAGS args=$MKARGS saved=$SAVED
+
+other -odd:V:
+	true
