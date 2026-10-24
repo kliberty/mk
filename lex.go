@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -306,6 +307,14 @@ func lexAssign(l *lexer) lexerStateFun {
 }
 
 func lexComment(l *lexer) lexerStateFun {
+	// A comment on a line of its own is like a blank line: it ends no
+	// statement, so a rule's recipe may still follow it.
+	wholeLine := l.indented
+	defer func() {
+		if wholeLine {
+			l.indented = true
+		}
+	}()
 	l.skip() // '#'
 	for {
 		l.skipUntil("\n")
@@ -370,18 +379,79 @@ func lexSingleQuotedWord(l *lexer) lexerStateFun {
 }
 
 func lexRecipe(l *lexer) lexerStateFun {
+	var val strings.Builder
+	segStart := l.start
 	for {
 		l.acceptUntilOrEof("\n")
 		l.acceptRun(" \t\n\r")
-		if !l.indented || l.col == 0 {
+		if l.indented && l.col > 0 {
+			continue // another recipe line
+		}
+		// The next line starts in column 0. Lines commented out there with
+		// "#" do not end the recipe if more of it follows: they become empty
+		// lines, so the recipe's line numbers stay the same.
+		if l.peek() != '#' {
 			break
 		}
+		n, ok := commentedOutLines(l.input[l.pos:])
+		if !ok {
+			break
+		}
+		val.WriteString(l.input[segStart:l.pos])
+		val.WriteString(strings.Repeat("\n", strings.Count(l.input[l.pos:l.pos+n], "\n")))
+		for end := l.pos + n; l.pos < end; {
+			l.next()
+		}
+		segStart = l.pos
 	}
+	val.WriteString(l.input[segStart:l.pos])
+	recipe := trimTrailingBlankLines(val.String())
 
-	if !onlyWhitespace(l.input[l.start:l.pos]) {
-		l.emit(tokenRecipe)
+	if !onlyWhitespace(recipe) {
+		l.output <- token{tokenRecipe, recipe, l.line, l.startcol}
+		l.start = l.pos
+		l.startcol = 0
 	}
 	return lexTopLevel
+}
+
+// trimTrailingBlankLines removes blank lines from the end of a recipe: they
+// separate it from what follows rather than belong to it.
+func trimTrailingBlankLines(s string) string {
+	last := strings.LastIndexFunc(s, func(r rune) bool { return !unicode.IsSpace(r) })
+	if last < 0 {
+		return s
+	}
+	if nl := strings.IndexByte(s[last:], '\n'); nl >= 0 {
+		return s[:last+nl+1]
+	}
+	return s
+}
+
+// commentedOutLines reports whether s, which starts at the beginning of a
+// line, begins with lines commented out by a "#" in column 0 (possibly with
+// blank lines among them) that are followed by more of a recipe: an indented,
+// non-blank line. If so, it returns the length of the commented-out lines.
+func commentedOutLines(s string) (int, bool) {
+	n := 0
+	for n < len(s) {
+		line := s[n:]
+		if i := strings.IndexByte(line, '\n'); i >= 0 {
+			line = line[:i+1]
+		} else {
+			return 0, false // the input ends without more recipe
+		}
+		switch {
+		case line[0] == '#':
+		case strings.TrimSpace(line) == "": // blank
+		case line[0] == ' ' || line[0] == '\t':
+			return n, true
+		default:
+			return 0, false
+		}
+		n += len(line)
+	}
+	return 0, false
 }
 
 func lexBareWord(l *lexer) lexerStateFun {

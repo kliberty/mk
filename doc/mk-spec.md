@@ -25,7 +25,8 @@ via backslash-newline continuation: the sequence `\<newline>` is deleted
 (in non-recipe context) or replaced with a space (in recipe context).
 
 Blank lines are ignored. Lines beginning with `#` (outside quotes) are comments
-and are discarded up to the next newline.
+and are discarded up to the next newline. Inside a recipe, blank lines are kept,
+and a column-0 comment becomes an empty line (see §6.1).
 
 ### 2.2 Character Classes
 
@@ -185,6 +186,21 @@ targets : attributes : prerequisites
 - **attributes**: zero or more attribute characters between the colons.
 - **prerequisites**: zero or more words.
 - **recipe**: zero or more lines, each beginning with whitespace (tab or space).
+  Blank lines within the recipe are part of it; blank lines after its last
+  line are not.
+
+A line with `#` in column 0 is an mk comment even between recipe lines. If an
+indented recipe line follows it (after any further such comments and blank
+lines), the recipe continues and the comment line becomes an empty line of
+the recipe, so the recipe's line numbers are unchanged; this lets a recipe
+line be commented out in place. Otherwise the comment ends the recipe like
+any other column-0 line, and comments before a recipe's first line are
+dropped. An indented `#` line is recipe text, passed to the shell.
+
+**[DIVERGENCE]** Plan 9 mk passes column-0 `#` lines inside a recipe to the
+shell unchanged, which breaks recipes run by programs whose comments use
+other syntax. Plan 9 also ends a recipe at a blank line; we continue it if
+more indented lines follow.
 
 The second colon is required if attributes are present. If no attributes,
 the form is `targets : prerequisites`.

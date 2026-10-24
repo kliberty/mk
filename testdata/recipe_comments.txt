@@ -1,0 +1,75 @@
+# A "#" in column 0 comments a line out of the mkfile. Between recipe lines
+# it becomes an empty line, so the recipe continues and its line numbers stay
+# the same; before the first or after the last recipe line it is dropped.
+# Indented "#" lines are part of the recipe, for the program to handle.
+
+mk -n -p 1 between
+cmp stdout between.want
+
+mk -n -p 1 leading
+cmp stdout leading.want
+
+mk -n -p 1 after-blank
+cmp stdout after-blank.want
+
+# a comment after the last recipe line, then the next rule, works as before
+mk -n -p 1 trailing next
+cmp stdout trailing.want
+
+# and the recipe runs: the commented-out line does not
+mk -p 1 runs
+cmp stdout runs.want
+
+-- mkfile --
+between:V:
+	one
+# two, commented out
+	three
+	# four, kept
+
+	six
+
+leading:V:
+# commented out before the recipe
+	one
+
+after-blank:V:
+	one
+
+# commented out after a blank line
+	four
+
+trailing:V:
+	one
+
+# --- a section comment ---
+next:V:
+	next one
+
+runs:V:
+	echo one
+#	echo two
+	echo three
+-- between.want --
+between: one
+          
+          three
+          # four, kept
+          
+          six
+-- leading.want --
+leading: one
+-- after-blank.want --
+after-blank: one
+              
+              
+              four
+-- trailing.want --
+trailing: one
+next: next one
+-- runs.want --
+runs: echo one
+       
+       echo three
+one
+three
