@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE language>
+<!--
+  Syntax highlighting for mkfiles, as used by Plan 9 mk and its Go port.
+  Install by copying this file to ~/.local/share/org.kde.syntax-highlighting/syntax/
+
+  Layout of an mkfile:
+    # comment
+    var = value              assignment (var=U=value: not exported to recipes)
+    <file                    include a file
+    <|command                include the output of a command
+    targets: prereqs         rule; targets:attributes:prereqs with attributes
+    	recipe               every indented line is recipe, run by the shell
+-->
+<language name="mk" section="Other" version="1" kateversion="5.79"
+          extensions="mkfile;mkhdr;mkone;mkmany;mklib;mksyslib;*.mkfile;mkfile.*"
+          mimetype="text/x-mkfile" priority="12"
+          author="mk contributors" license="BSD-2-Clause">
+  <highlighting>
+    <contexts>
+      <!-- Each line is classified by how it starts. -->
+      <context name="Normal" attribute="Normal Text" lineEndContext="#stay">
+        <RegExpr context="Recipe" String="^[ \t]+(?=\S)" column="0" lookAhead="1"/>
+        <DetectChar attribute="Comment" context="Comment" char="#"/>
+        <Detect2Chars attribute="Include" context="Include" char="&lt;" char1="|" column="0"/>
+        <DetectChar attribute="Include" context="Include" char="&lt;" column="0"/>
+        <RegExpr attribute="Assigned Variable" context="Assignment" String="^[A-Za-z_][A-Za-z0-9_]*(?=[ \t]*=)" column="0"/>
+        <RegExpr context="Targets" String="[^\s#&lt;:=]" column="0" lookAhead="1"/>
+      </context>
+
+      <!-- Recipes: mk substitutes its variables first; the rest is shell. -->
+      <context name="Recipe" attribute="Normal Text" lineEndContext="#pop">
+        <RegExpr context="#pop" String="\S" column="0" lookAhead="1"/>
+        <Detect2Chars attribute="Escape" char="\" char1="$"/>
+        <IncludeRules context="Variables"/>
+        <IncludeRules context="BashOneLine##Bash"/>
+      </context>
+
+      <context name="Comment" attribute="Comment" lineEndContext="#pop">
+        <DetectSpaces/>
+        <IncludeRules context="##Comments"/>
+      </context>
+
+      <context name="Include" attribute="Include Path" lineEndContext="#pop">
+        <LineContinue attribute="Escape"/>
+        <IncludeRules context="Common"/>
+      </context>
+
+      <!-- var = value, var=U=value -->
+      <context name="Assignment" attribute="Normal Text" lineEndContext="#pop">
+        <DetectSpaces/>
+        <StringDetect attribute="Attribute" context="#pop!Value" String="=U="/>
+        <DetectChar attribute="Operator" context="#pop!Value" char="="/>
+      </context>
+      <context name="Value" attribute="Normal Text" lineEndContext="#pop">
+        <LineContinue attribute="Escape"/>
+        <IncludeRules context="Common"/>
+      </context>
+
+      <!-- targets : [attributes :] prerequisites -->
+      <context name="Targets" attribute="Target" lineEndContext="#pop">
+        <LineContinue attribute="Escape"/>
+        <AnyChar attribute="Pattern" String="%&amp;"/>
+        <IncludeRules context="Variables"/>
+        <IncludeRules context="Strings"/>
+        <!-- a second colon later on the line means an attribute field follows -->
+        <RegExpr attribute="Operator" context="#pop!Attributes" String=":(?=[^:]*:)"/>
+        <DetectChar attribute="Operator" context="#pop!Prereqs" char=":"/>
+      </context>
+      <context name="Attributes" attribute="Attribute" lineEndContext="#pop">
+        <IncludeRules context="Variables"/>
+        <DetectChar attribute="Operator" context="#pop!Prereqs" char=":"/>
+      </context>
+      <context name="Prereqs" attribute="Normal Text" lineEndContext="#pop">
+        <LineContinue attribute="Escape"/>
+        <AnyChar attribute="Pattern" String="%&amp;"/>
+        <IncludeRules context="Common"/>
+      </context>
+
+      <!-- Shared pieces -->
+      <context name="Common" attribute="Normal Text" lineEndContext="#stay">
+        <DetectChar attribute="Comment" context="Comment" char="#"/>
+        <IncludeRules context="Variables"/>
+        <IncludeRules context="Strings"/>
+      </context>
+      <context name="Variables" attribute="Normal Text" lineEndContext="#stay">
+        <Detect2Chars attribute="Escape" char="$" char1="$"/>
+        <RegExpr attribute="Variable" String="\$\{[A-Za-z_][A-Za-z0-9_]*:[^}]*\}"/>
+        <RegExpr attribute="Variable" String="\$\{[^}]*\}"/>
+        <RegExpr attribute="Variable" String="\$[A-Za-z_][A-Za-z0-9_]*"/>
+      </context>
+      <context name="Strings" attribute="Normal Text" lineEndContext="#stay">
+        <DetectChar attribute="String" context="SingleQuoted" char="'"/>
+        <DetectChar attribute="String" context="DoubleQuoted" char="&quot;"/>
+        <Detect2Chars attribute="Command" context="RcBackquote" char="`" char1="{"/>
+        <DetectChar attribute="Command" context="Backquote" char="`"/>
+      </context>
+      <context name="SingleQuoted" attribute="String" lineEndContext="#stay">
+        <DetectChar attribute="String" context="#pop" char="'"/>
+      </context>
+      <context name="DoubleQuoted" attribute="String" lineEndContext="#stay">
+        <RegExpr attribute="Escape" String="\\."/>
+        <IncludeRules context="Variables"/>
+        <DetectChar attribute="String" context="#pop" char="&quot;"/>
+      </context>
+      <context name="Backquote" attribute="Command" lineEndContext="#stay">
+        <IncludeRules context="Variables"/>
+        <DetectChar attribute="Command" context="#pop" char="`"/>
+      </context>
+      <context name="RcBackquote" attribute="Command" lineEndContext="#stay">
+        <IncludeRules context="Variables"/>
+        <DetectChar attribute="Command" context="#pop" char="}"/>
+      </context>
+    </contexts>
+
+    <itemDatas>
+      <itemData name="Normal Text"       defStyleNum="dsNormal" spellChecking="false"/>
+      <itemData name="Comment"           defStyleNum="dsComment"/>
+      <itemData name="Target"            defStyleNum="dsFunction" spellChecking="false"/>
+      <itemData name="Attribute"         defStyleNum="dsAttribute" spellChecking="false"/>
+      <itemData name="Operator"          defStyleNum="dsOperator" spellChecking="false"/>
+      <itemData name="Pattern"           defStyleNum="dsSpecialChar" spellChecking="false"/>
+      <itemData name="Variable"          defStyleNum="dsVariable" spellChecking="false"/>
+      <itemData name="Assigned Variable" defStyleNum="dsVariable" bold="true" spellChecking="false"/>
+      <itemData name="Escape"            defStyleNum="dsSpecialChar" spellChecking="false"/>
+      <itemData name="String"            defStyleNum="dsString"/>
+      <itemData name="Command"           defStyleNum="dsVerbatimString" spellChecking="false"/>
+      <itemData name="Include"           defStyleNum="dsPreprocessor" spellChecking="false"/>
+      <itemData name="Include Path"      defStyleNum="dsImport" spellChecking="false"/>
+    </itemDatas>
+  </highlighting>
+  <general>
+    <comments>
+      <comment name="singleLine" start="#"/>
+    </comments>
+    <keywords casesensitive="1"/>
+  </general>
+</language>
