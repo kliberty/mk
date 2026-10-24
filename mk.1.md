@@ -165,9 +165,15 @@ the mkfiles, and any command line assignment as an
 argument to mk. A variable assignment argument overrides the
 first (but not any subsequent) assignment to that variable.
 
-The variable MKFLAGS contains all the option arguments
-(arguments starting with '-' or containing '=') and MKARGS
-contains all the targets in the call to mk.
+The variable MKFLAGS contains the options mk was called with, as
+written (including option values, such as the file in `-f file`),
+followed by any `var=value` assignments. MKARGS contains the targets
+named on the command line, and is empty if none were. Both are set
+before the mkfile is read, so they can be used in assignments, and a
+recursive call can pass the same options on:
+
+    sub:V:
+            cd sub && mk $MKFLAGS
 
 ### Execution
 During execution, mk determines which targets must be
