@@ -2,6 +2,7 @@
 # says where each one is.
 mkdir tmp
 env TMPDIR=$WORK/tmp
+env XDG_RUNTIME_DIR=
 
 mk -keep-temp-files -p 1 ok
 stderr '^mk: recipe for ''ok'' kept in .*/tmp/mk-ok-'

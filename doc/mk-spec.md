@@ -309,15 +309,37 @@ all:VS"python3":
 
 #### F (File) **[DIVERGENCE]**
 
-The recipe, after variable substitution, is written to a temporary file in
-`$TMPDIR`, and the file's path is appended as the last argument to the shell
-command (or the `S` program): `sh -e /tmp/mk-target-123`,
-`python3 /tmp/mk-target-123`, `awk -f /tmp/mk-target-123`. The recipe's
-standard input is mk's own, so commands in it can read input; without `F`,
-a command that reads standard input consumes the rest of the recipe. The file
-is removed when the recipe finishes, and on SIGINT, SIGTERM or SIGHUP, after
-which mk ends with the same signal. With `-keep-temp-files` it is kept instead,
-and its path printed to stderr.
+The recipe, after variable substitution, is written to a file whose path is
+appended as the last argument to the shell command (or the `S` program):
+`sh -e /run/user/1000/mk-target-123/recipe`, `python3 …`, `awk -f …`. The
+recipe's standard input is mk's own, so commands in it can read input;
+without `F`, a command that reads standard input consumes the rest of the
+recipe.
+
+Where the file goes is set by the `MKRECIPEDIR` variable (from the
+environment, the mkfile or the command line):
+
+| Value | Location |
+|---|---|
+| `auto` (default) | as `xdg` if `$XDG_RUNTIME_DIR` is set, otherwise as `tmp` |
+| `xdg` | a new private (mode 0700) directory in `$XDG_RUNTIME_DIR`; an error if unset |
+| `tmp` | a new private directory in `$TMPDIR` (default `/tmp`) |
+| a path: `.`, `..`, or containing `/` | a hidden `.mk-recipe-*` file directly in that directory |
+| anything else | an error |
+
+Private directories exist because interpreters may load files from beside the
+script: Python puts the script's directory first in `sys.path`, so a module
+planted in a shared `/tmp` could shadow a real one. Node also searches
+`node_modules` in every parent directory, so a private directory in `/tmp`
+still leaves `/tmp/node_modules` visible; `$XDG_RUNTIME_DIR`, whose parents
+belong to root, avoids that. A path is for when the script's directory
+matters, such as `.` so Python imports modules from the current directory as
+it does for a recipe on standard input; anyone who can write to that
+directory can then affect the recipe.
+
+The file (or private directory) is removed when the recipe finishes, and on
+SIGINT, SIGTERM or SIGHUP, after which mk ends with the same signal. With
+`-keep-temp-files` it is kept instead, and its path printed to stderr.
 
 ```
 config:VF:

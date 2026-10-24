@@ -3,6 +3,7 @@
 # on standard input. The file is removed afterwards.
 mkdir tmp
 env TMPDIR=$WORK/tmp
+env XDG_RUNTIME_DIR=
 
 # the shell runs the file: $0 is its path
 mk -p 1 path

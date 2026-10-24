@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -18,52 +19,119 @@ var (
 	keepTempFiles bool
 
 	recipeFilesMu sync.Mutex
-	recipeFiles   = map[string]bool{} // recipe files not yet removed
+	recipeFiles   = map[string]bool{} // files and directories not yet removed
 	cleanupOnce   sync.Once
 )
 
-// writeRecipeFile writes a recipe to a new temporary file (in $TMPDIR) and
-// returns its path. The name includes the target, so the shell's error
-// messages say which recipe they come from. The caller must remove the file
-// with removeRecipeFile.
-func writeRecipeFile(target, recipe string) (string, error) {
+// recipeLocation is where F recipe files are written, as chosen by the
+// MKRECIPEDIR variable.
+type recipeLocation struct {
+	dir     string // the directory to write into
+	private bool   // make a private directory inside dir for each recipe
+}
+
+// recipeLocationFor interprets MKRECIPEDIR:
+//
+//	auto (or unset)  xdg if $XDG_RUNTIME_DIR is set, otherwise tmp
+//	xdg              a private directory in $XDG_RUNTIME_DIR
+//	tmp              a private directory in $TMPDIR
+//	a path           a hidden file directly in that directory (a path is
+//	                 ".", "..", or anything containing a /)
+//
+// Private directories keep other users from planting files next to the
+// recipe that an interpreter would load (Python, for one, searches the
+// script's directory for imports). A path is for when the script's directory
+// matters, e.g. so that imports resolve there; its security is then up to
+// the user.
+func recipeLocationFor(vars map[string][]string) (recipeLocation, error) {
+	setting := strings.Join(vars["MKRECIPEDIR"], " ")
+	xdg := strings.Join(vars["XDG_RUNTIME_DIR"], " ")
+	tmp := strings.Join(vars["TMPDIR"], " ")
+	if tmp == "" {
+		tmp = os.TempDir()
+	}
+	switch {
+	case setting == "" || setting == "auto":
+		if xdg != "" {
+			return recipeLocation{xdg, true}, nil
+		}
+		return recipeLocation{tmp, true}, nil
+	case setting == "xdg":
+		if xdg == "" {
+			return recipeLocation{}, fmt.Errorf("MKRECIPEDIR is xdg, but $XDG_RUNTIME_DIR is not set")
+		}
+		return recipeLocation{xdg, true}, nil
+	case setting == "tmp":
+		return recipeLocation{tmp, true}, nil
+	case setting == "." || setting == ".." ||
+		strings.ContainsRune(setting, '/') || strings.ContainsRune(setting, filepath.Separator):
+		return recipeLocation{setting, false}, nil
+	}
+	return recipeLocation{}, fmt.Errorf("MKRECIPEDIR: unknown value %q (want auto, xdg, tmp, or a path such as . or ./dir)", setting)
+}
+
+// writeRecipeFile writes a recipe to a new file at loc. It returns the path
+// of the script, and the path to give removeRecipeFile afterwards (the
+// private directory, or the script itself). Names include the target, so
+// the shell's error messages say which recipe they come from.
+func writeRecipeFile(loc recipeLocation, target, recipe string) (script, remove string, err error) {
 	if !keepTempFiles {
 		cleanupOnce.Do(removeRecipeFilesOnSignal)
 	}
+	name := fileNamePart(target)
 
-	f, err := os.CreateTemp("", "mk-"+fileNamePart(target)+"-*")
-	if err != nil {
-		return "", err
+	if loc.private {
+		dir, err := os.MkdirTemp(loc.dir, "mk-"+name+"-*") // mode 0700
+		if err != nil {
+			return "", "", err
+		}
+		trackRecipeFile(dir)
+		script = filepath.Join(dir, "recipe")
+		if err := os.WriteFile(script, []byte(recipe), 0o600); err != nil {
+			removeRecipeFile(dir)
+			return "", "", err
+		}
+		remove = dir
+	} else {
+		f, err := os.CreateTemp(loc.dir, ".mk-recipe-"+name+"-*")
+		if err != nil {
+			return "", "", err
+		}
+		trackRecipeFile(f.Name())
+		_, err = f.WriteString(recipe)
+		if cerr := f.Close(); err == nil {
+			err = cerr
+		}
+		if err != nil {
+			removeRecipeFile(f.Name())
+			return "", "", err
+		}
+		script, remove = f.Name(), f.Name()
 	}
-	recipeFilesMu.Lock()
-	recipeFiles[f.Name()] = true
-	recipeFilesMu.Unlock()
 
-	_, err = f.WriteString(recipe)
-	if cerr := f.Close(); err == nil {
-		err = cerr
-	}
-	if err != nil {
-		removeRecipeFile(f.Name())
-		return "", err
-	}
 	if keepTempFiles {
 		mkMsgMutex.Lock()
-		fmt.Fprintf(os.Stderr, "mk: recipe for '%s' kept in %s\n", target, f.Name())
+		fmt.Fprintf(os.Stderr, "mk: recipe for '%s' kept in %s\n", target, script)
 		mkMsgMutex.Unlock()
 	}
-	return f.Name(), nil
+	return script, remove, nil
 }
 
-// removeRecipeFile removes a file made by writeRecipeFile, unless
-// -keep-temp-files was given.
+func trackRecipeFile(path string) {
+	recipeFilesMu.Lock()
+	recipeFiles[path] = true
+	recipeFilesMu.Unlock()
+}
+
+// removeRecipeFile removes a file or private directory made by
+// writeRecipeFile, unless -keep-temp-files was given.
 func removeRecipeFile(path string) {
 	if keepTempFiles {
 		return
 	}
 	recipeFilesMu.Lock()
 	defer recipeFilesMu.Unlock()
-	os.Remove(path)
+	os.RemoveAll(path)
 	delete(recipeFiles, path)
 }
 
@@ -77,7 +145,7 @@ func removeRecipeFilesOnSignal() {
 		sig := <-c
 		recipeFilesMu.Lock() // held until exit, so no new files appear
 		for path := range recipeFiles {
-			os.Remove(path)
+			os.RemoveAll(path)
 		}
 		// Re-raise the signal so mk ends the way it would have without
 		// this handler. Delivery is asynchronous, so allow it a moment

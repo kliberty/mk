@@ -334,9 +334,29 @@ F
     the S attribute), instead of being supplied as standard input.
     The recipe can then read mk's standard input, and the shell's
     error messages name the file, which includes the target's name.
-    The file is created in `$TMPDIR` and removed afterwards, including
-    when mk is interrupted (unless `-keep-temp-files` is given). With S, the program must accept a script
-    path as its last argument (for example `Spython3` or `Sawk -f`).
+    With S, the program must accept a script path as its last
+    argument (for example `Spython3` or `Sawk -f`).
+
+    The variable MKRECIPEDIR chooses where the file is written:
+
+    `auto` (the default)
+    :   `xdg` if `$XDG_RUNTIME_DIR` is set, otherwise `tmp`.
+
+    `xdg`, `tmp`
+    :   A new private directory in `$XDG_RUNTIME_DIR` or `$TMPDIR`.
+        Other users cannot place files beside the recipe, which some
+        interpreters would load (Python searches the script's
+        directory for modules).
+
+    a path (`.`, `..`, or anything containing `/`)
+    :   A hidden `.mk-recipe-*` file directly in that directory, for
+        when the script's directory matters: for example `.`, so that
+        Python finds modules in the current directory, as it does
+        when reading a recipe from standard input. Anyone who can
+        write to that directory can affect the recipe.
+
+    The file (and private directory) is removed afterwards, including
+    when mk is interrupted, unless `-keep-temp-files` is given.
 
 N
 :   If there is no recipe, the target has its time updated.

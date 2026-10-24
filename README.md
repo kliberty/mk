@@ -108,7 +108,10 @@ mean.txt:Sjulia: input.txt
 
 With the `F` attribute, the recipe is passed as a temporary file instead of
 on standard input, so it can read input itself, and the program receives a
-script path (`:FSpython3:`, `:FSawk -f:`).
+script path (`:FSpython3:`, `:FSawk -f:`). The `MKRECIPEDIR` variable sets
+where the file goes: a private directory by default, or a directory of your
+choice (`MKRECIPEDIR = .` lets Python import modules from the current
+directory).
 
 ## License
 

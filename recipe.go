@@ -149,12 +149,16 @@ func dorecipe(n *node, e *edge, opts *buildOpts, nproc int) error {
 	// argument, and the recipe gets mk's standard input instead.
 	var stdin io.Reader = strings.NewReader(input)
 	if e.r.attributes.recipeFile {
-		path, err := writeRecipeFile(n.name, input)
+		loc, err := recipeLocationFor(vars)
 		if err != nil {
 			return err
 		}
-		defer removeRecipeFile(path)
-		args = append(args[:len(args):len(args)], path)
+		script, remove, err := writeRecipeFile(loc, n.name, input)
+		if err != nil {
+			return err
+		}
+		defer removeRecipeFile(remove)
+		args = append(args[:len(args):len(args)], script)
 		stdin = os.Stdin
 	}
 
