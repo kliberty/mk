@@ -88,6 +88,7 @@ _See the [man page](mk.1.md) for full documentation, and the
 | `-I` | Interactive: prompt before executing rules |
 | `-q` | Quiet: don't print recipes before executing |
 | `-dot` | Print dependency graph in Graphviz dot format |
+| `-keep-temp-files` | Keep the temporary files of `F` recipes (debugging) |
 | `-color` | Force color output on/off |
 | `-shell prog` | Default shell (default: `sh -e`) |
 
@@ -104,6 +105,13 @@ mean.txt:Sjulia: input.txt
     println(open("$target", "w"),
             mean(map(parseint, eachline(open("$prereq")))))
 ```
+
+With the `F` attribute, the recipe is passed as a temporary file instead of
+on standard input, so it can read input itself, and the program receives a
+script path (`:FSpython3:`, `:FSawk -f:`). The `MKRECIPEDIR` variable sets
+where the file goes: a private directory by default, or a directory of your
+choice (`MKRECIPEDIR = .` lets Python import modules from the current
+directory).
 
 ## License
 

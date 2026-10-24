@@ -28,7 +28,8 @@ func TestScript(t *testing.T) {
 	engine.Cmds["mk"] = script.Program(testBin, nil, 0)
 
 	env := os.Environ()
-	env = append(env, "TEST_MAIN=mk")
+	// $MK lets a script run mk through sh, e.g. to redirect its stdin.
+	env = append(env, "TEST_MAIN=mk", "MK="+testBin)
 
 	scripttest.Test(t, context.Background(), engine, env, "testdata/*.txt")
 }

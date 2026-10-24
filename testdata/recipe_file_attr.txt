@@ -1,0 +1,53 @@
+# F attribute: the recipe is written to a temporary file whose path is passed
+# as the last argument to the shell (or the S program), instead of being fed
+# on standard input. The file is removed afterwards.
+mkdir tmp
+env TMPDIR=$WORK/tmp
+env XDG_RUNTIME_DIR=
+
+# the shell runs the file: $0 is its path
+mk -p 1 path
+stdout '^script=.*/tmp/mk-path-'
+exec ls tmp
+! stdout .
+
+# standard input is left to the recipe, so it can read input
+exec sh -c '$MK -p 1 reads < input.txt'
+stdout '^got hello$'
+
+# with S, the path follows the program's own arguments
+mk -p 1 awk
+stdout '^awk ran$'
+
+# the default shell still runs with -e; E still removes it
+! mk -p 1 stops
+! stdout '^after$'
+mk -p 1 continues
+stdout '^after$'
+
+# -n prints the recipe but creates no file
+mk -n -p 1 path
+stdout '^path: echo script='
+exec ls tmp
+! stdout .
+
+-- input.txt --
+hello
+-- mkfile --
+path:VF:
+	echo script=$$0
+
+reads:VF:
+	read line
+	echo got $$line
+
+awk:VFSawk -f:
+	BEGIN { print "awk ran" }
+
+stops:VF:
+	false
+	echo after
+
+continues:VEF:
+	false
+	echo after

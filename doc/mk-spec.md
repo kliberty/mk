@@ -248,6 +248,7 @@ The `S` attribute is present in plan9port mk but not in the original Plan 9 pape
 
 **[DIVERGENCE]** Our implementation adds:
 - `X` — Exclusive: recipe acquires all parallel job slots before executing
+- `F` — File: recipe is passed to the shell as a file, not on stdin (see below)
 
 #### N (No-recipe)
 
@@ -304,6 +305,47 @@ The attribute consumes the remaining attribute text:
 ```
 all:VS"python3":
     import sys; print(sys.version)
+```
+
+#### F (File) **[DIVERGENCE]**
+
+The recipe, after variable substitution, is written to a file whose path is
+appended as the last argument to the shell command (or the `S` program):
+`sh -e /run/user/1000/mk-target-123/recipe`, `python3 …`, `awk -f …`. The
+recipe's standard input is mk's own, so commands in it can read input;
+without `F`, a command that reads standard input consumes the rest of the
+recipe.
+
+Where the file goes is set by the `MKRECIPEDIR` variable (from the
+environment, the mkfile or the command line):
+
+| Value | Location |
+|---|---|
+| `auto` (default) | as `xdg` if `$XDG_RUNTIME_DIR` is set, otherwise as `tmp` |
+| `xdg` | a new private (mode 0700) directory in `$XDG_RUNTIME_DIR`; an error if unset |
+| `tmp` | a new private directory in `$TMPDIR` (default `/tmp`) |
+| a path: `.`, `..`, or containing `/` | a hidden `.mk-recipe-*` file directly in that directory |
+| anything else | an error |
+
+Private directories exist because interpreters may load files from beside the
+script: Python puts the script's directory first in `sys.path`, so a module
+planted in a shared `/tmp` could shadow a real one. Node also searches
+`node_modules` in every parent directory, so a private directory in `/tmp`
+still leaves `/tmp/node_modules` visible; `$XDG_RUNTIME_DIR`, whose parents
+belong to root, avoids that. A path is for when the script's directory
+matters, such as `.` so Python imports modules from the current directory as
+it does for a recipe on standard input; anyone who can write to that
+directory can then affect the recipe.
+
+The file (or private directory) is removed when the recipe finishes, and on
+SIGINT, SIGTERM or SIGHUP, after which mk ends with the same signal. With
+`-keep-temp-files` it is kept instead, and its path printed to stderr.
+
+```
+config:VF:
+    printf 'name: '
+    read name
+    echo "name = $$name" > config
 ```
 
 #### X (Exclusive) **[DIVERGENCE]**
@@ -561,6 +603,8 @@ in the mkfile.
 - `-C dir` — Change to `dir` before reading mkfile
 - `-I` — Interactive mode: prompt before executing rules
 - `-dot` — Print dependency graph in Graphviz dot format and exit
+- `-keep-temp-files` — Keep the temporary file of every `F` recipe, even on
+  success or interrupt, and print each file's path to stderr (for debugging)
 - `-color` — Enable/disable color output (default: auto-detect TTY)
 - `-shell cmd` — Default shell (default: `sh -e`)
 - `-e` — Explain why targets are out of date (prints staleness decisions to stderr)
@@ -578,8 +622,8 @@ in the mkfile.
 | Recipe display | `front()` truncates to 5 fields | No truncation |
 | Regex syntax | Plan 9 `regexp(6)` | Go RE2 (no backreferences or lookaheads) |
 | Parallelism | `$NPROC` env var only | `-p` flag > `$NPROC` env > NumCPU |
-| Additional attributes | — | `X` (exclusive execution) |
-| Additional flags | — | `-p`, `-l`, `-C`, `-I`, `-dot`, `-color`, `-shell` |
+| Additional attributes | — | `X` (exclusive execution), `F` (recipe as a file) |
+| Additional flags | — | `-p`, `-l`, `-C`, `-I`, `-dot`, `-color`, `-shell`, `-keep-temp-files` |
 
 ## Appendix B: Examples
 

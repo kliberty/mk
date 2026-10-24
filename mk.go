@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -369,7 +371,12 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 func staleByProgram(n *node, e *edge, prereqs []*node, explain bool) bool {
 	for _, p := range prereqs {
 		args := append(append([]string{}, e.r.command[1:]...), n.name, p.name)
-		if _, err := subprocess(e.r.command[0], args, os.Environ(), "", false); err != nil {
+		if _, err := subprocess(e.r.command[0], args, os.Environ(), strings.NewReader(""), false); err != nil {
+			// A non-zero exit means out of date; failing to run at all is an error.
+			var exitErr *exec.ExitError
+			if !errors.As(err, &exitErr) {
+				mkError(fmt.Sprintf("P attribute program for %s: %v", n.name, err))
+			}
 			if explain {
 				fmt.Fprintf(os.Stderr, "mk: %s out of date via %s (P attribute)\n", n.name, p.name)
 			}
@@ -381,6 +388,7 @@ func staleByProgram(n *node, e *edge, prereqs []*node, explain bool) bool {
 
 func mkError(msg string) {
 	mkPrintError(msg)
+	removeAllRecipeFiles()
 	os.Exit(1)
 }
 
@@ -448,6 +456,7 @@ func main() {
 	flag.BoolVar(&opts.explain, "e", false, "explain why targets are out of date")
 	flag.BoolVar(&quiet, "q", false, "don't print recipes before executing them")
 	flag.BoolVar(&dotOutput, "dot", false, "print dependency graph in graphviz dot format and exit")
+	flag.BoolVar(&keepTempFiles, "keep-temp-files", false, "keep the temporary files of F recipes, for debugging")
 	flag.BoolVar(&color, "color", isatty.IsTerminal(os.Stdout.Fd()), "turn color on/off")
 	flag.StringVar(&defaultShell, "shell", "sh -e", "default shell to use if none are specified via $shell")
 	// TODO(rjk): P9P mk command line compatability.

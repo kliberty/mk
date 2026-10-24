@@ -20,6 +20,7 @@ type attribSet struct {
 	update          bool // treat the targets as if they were updated
 	virtual         bool // rule is virtual (does not match files)
 	exclusive       bool // don't execute concurrently with any other rule
+	recipeFile      bool // F: pass the recipe to the shell as a file, not on stdin
 }
 
 // Error parsing an attribute
@@ -146,6 +147,8 @@ func (r *rule) parseAttribs(inputs []string) *attribError {
 				r.command = append(r.command, inputs[i+1:]...)
 				return nil
 
+			case 'F':
+				r.attributes.recipeFile = true
 			case 'S':
 				if pos+w < len(input) {
 					r.shell = append(r.shell, input[pos+w:])

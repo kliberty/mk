@@ -5,10 +5,8 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
-	"log"
 	"maps"
 	"os"
 	"os/exec"
@@ -144,13 +142,25 @@ func dorecipe(n *node, e *edge, opts *buildOpts, nproc int) error {
 		env = append(env, k+"="+strings.Join(v, " "))
 	}
 
-	_, err := subprocess(
-		sh,
-		args,
-		env,
-		input,
-		false)
+	// Normally the recipe is the shell's standard input. With the F
+	// attribute, it is written to a file whose path is passed as the last
+	// argument, and the recipe gets mk's standard input instead.
+	var stdin io.Reader = strings.NewReader(input)
+	if e.r.attributes.recipeFile {
+		loc, err := recipeLocationFor(vars)
+		if err != nil {
+			return err
+		}
+		script, remove, err := writeRecipeFile(loc, n.name, input)
+		if err != nil {
+			return err
+		}
+		defer removeRecipeFile(remove)
+		args = append(args[:len(args):len(args)], script)
+		stdin = os.Stdin
+	}
 
+	_, err := subprocess(sh, args, env, stdin, false)
 	return err
 }
 
@@ -159,21 +169,22 @@ func dorecipe(n *node, e *edge, opts *buildOpts, nproc int) error {
 // Args:
 //
 //	program: Program path or name located in PATH
-//	input: String piped into the program's stdin
+//	stdin: The program's standard input
 //	captureOut: If true, capture and return the program's stdout rather than echoing it.
 //
-// Returns the captured stdout (empty if captureOut is false) and, if the
-// program exited with a non-zero status, the *exec.ExitError describing it.
-// Failing to start the program at all is fatal.
+// Returns the captured stdout (empty if captureOut is false) and an error if
+// the program could not be started or exited with a non-zero status (an
+// *exec.ExitError). Callers decide whether that is fatal; exiting here would
+// skip their cleanup, such as removing an F recipe's file.
 func subprocess(program string,
 	args []string,
 	env []string,
-	input string,
+	stdin io.Reader,
 	captureOut bool,
 ) (string, error) {
 	cmd := exec.Command(program, args...)
 	cmd.Env = env
-	cmd.Stdin = strings.NewReader(input)
+	cmd.Stdin = stdin
 	cmd.Stderr = os.Stderr
 
 	var stdout bytes.Buffer
@@ -184,11 +195,5 @@ func subprocess(program string,
 	}
 
 	err := cmd.Run()
-	if err != nil {
-		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) {
-			log.Fatal(err)
-		}
-	}
 	return stdout.String(), err
 }

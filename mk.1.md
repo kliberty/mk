@@ -70,6 +70,10 @@ Options are:
 -dot
 :   Print dependency graph in graphviz dot format and exit.
 
+-keep-temp-files
+:   For debugging: keep the temporary file written for each recipe
+    with the F attribute, instead of removing it, and print its path.
+
 -color
 :   Force color output on/off.
 
@@ -323,6 +327,36 @@ D
 
 E
 :   Continue execution if the recipe draws errors.
+
+F
+:   The recipe is written to a temporary file, whose path is passed
+    as the last argument to the shell (or to the program given by
+    the S attribute), instead of being supplied as standard input.
+    The recipe can then read mk's standard input, and the shell's
+    error messages name the file, which includes the target's name.
+    With S, the program must accept a script path as its last
+    argument (for example `Spython3` or `Sawk -f`).
+
+    The variable MKRECIPEDIR chooses where the file is written:
+
+    `auto` (the default)
+    :   `xdg` if `$XDG_RUNTIME_DIR` is set, otherwise `tmp`.
+
+    `xdg`, `tmp`
+    :   A new private directory in `$XDG_RUNTIME_DIR` or `$TMPDIR`.
+        Other users cannot place files beside the recipe, which some
+        interpreters would load (Python searches the script's
+        directory for modules).
+
+    a path (`.`, `..`, or anything containing `/`)
+    :   A hidden `.mk-recipe-*` file directly in that directory, for
+        when the script's directory matters: for example `.`, so that
+        Python finds modules in the current directory, as it does
+        when reading a recipe from standard input. Anyone who can
+        write to that directory can affect the recipe.
+
+    The file (and private directory) is removed afterwards, including
+    when mk is interrupted, unless `-keep-temp-files` is given.
 
 N
 :   If there is no recipe, the target has its time updated.

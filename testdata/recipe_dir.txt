@@ -1,0 +1,51 @@
+# MKRECIPEDIR chooses where F recipes are written. Keywords pick a private
+# directory (removed afterwards); a path puts the file directly there.
+mkdir tmp xdg build
+env TMPDIR=$WORK/tmp
+
+# auto (the default) uses a private directory in $XDG_RUNTIME_DIR if set...
+env XDG_RUNTIME_DIR=$WORK/xdg
+mk -p 1 where
+stdout '^script=.*/xdg/mk-where-[^/]*/'
+stdout '^dir=drwx------'
+exec ls xdg
+! stdout .
+
+# ...and otherwise one in $TMPDIR
+env XDG_RUNTIME_DIR=
+mk -p 1 where
+stdout '^script=.*/tmp/mk-where-[^/]*/'
+exec ls tmp
+! stdout .
+
+# tmp and xdg choose explicitly; xdg needs $XDG_RUNTIME_DIR
+env XDG_RUNTIME_DIR=$WORK/xdg
+mk -p 1 where MKRECIPEDIR=tmp
+stdout '^script=.*/tmp/mk-where-'
+env XDG_RUNTIME_DIR=
+! mk -p 1 where MKRECIPEDIR=xdg
+stderr 'MKRECIPEDIR is xdg, but \$XDG_RUNTIME_DIR is not set'
+
+# a path puts a hidden file directly in that directory, so the script's
+# directory is that directory
+mk -p 1 where MKRECIPEDIR=./build
+stdout '^script=\./build/\.mk-recipe-where-'
+exec ls -a build
+! stdout '\.mk-recipe'
+
+# the setting can come from the mkfile, too
+mk -p 1 -f local.mk where
+stdout '^script=\./\.mk-recipe-where-'
+
+# anything else is an error, so a typo does not silently pick a location
+! mk -p 1 where MKRECIPEDIR=temp
+stderr 'MKRECIPEDIR: unknown value "temp"'
+
+-- mkfile --
+where:VF:
+	echo script=$$0
+	echo dir=$$(ls -ld "$$(dirname "$$0")")
+-- local.mk --
+MKRECIPEDIR = .
+where:VF:
+	echo script=$$0
