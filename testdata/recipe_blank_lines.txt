@@ -1,0 +1,11 @@
+# Blank lines inside a recipe are kept, e.g. in a here-document.
+mk -p 1
+stdout '^line one\n\nline three$'
+
+-- mkfile --
+all:V:
+	cat <<EOF
+	line one
+
+	line three
+	EOF

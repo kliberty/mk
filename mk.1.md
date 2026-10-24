@@ -99,6 +99,13 @@ begin with white space.  A rule takes the form
     target: prereq1 prereq2
             recipe using prereq1, prereq2 to build target
 
+A line with `#` in its first column comments that line out of the
+mkfile, even between the lines of a recipe: the recipe continues,
+and the line reaches the shell as an empty line, so the recipe's line
+numbers are unchanged. A `#` comment that is indented is part of the
+recipe, for the shell (or the S program) to handle. Blank lines
+within a recipe are kept; those after its last line are not.
+
 
 After the colon on the target line, a rule may specify
 attributes, described below.

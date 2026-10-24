@@ -26,7 +26,9 @@ func stripIndentation(s string, mincol int) string {
 		i := 0
 		for i < len(line) && col < mincol {
 			c, w := utf8.DecodeRuneInString(line[i:])
-			if strings.ContainsRune(" \t\n", c) {
+			// Only spaces and tabs are indentation: removing a newline
+			// would delete blank lines from the recipe.
+			if c == ' ' || c == '\t' {
 				col += 1
 				i += w
 			} else {
