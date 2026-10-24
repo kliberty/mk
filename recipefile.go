@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"strings"
@@ -12,6 +13,10 @@ import (
 )
 
 var (
+	// keepTempFiles (the -keep-temp-files flag) keeps every recipe file
+	// for debugging, instead of removing it.
+	keepTempFiles bool
+
 	recipeFilesMu sync.Mutex
 	recipeFiles   = map[string]bool{} // recipe files not yet removed
 	cleanupOnce   sync.Once
@@ -22,7 +27,9 @@ var (
 // messages say which recipe they come from. The caller must remove the file
 // with removeRecipeFile.
 func writeRecipeFile(target, recipe string) (string, error) {
-	cleanupOnce.Do(removeRecipeFilesOnSignal)
+	if !keepTempFiles {
+		cleanupOnce.Do(removeRecipeFilesOnSignal)
+	}
 
 	f, err := os.CreateTemp("", "mk-"+fileNamePart(target)+"-*")
 	if err != nil {
@@ -40,10 +47,20 @@ func writeRecipeFile(target, recipe string) (string, error) {
 		removeRecipeFile(f.Name())
 		return "", err
 	}
+	if keepTempFiles {
+		mkMsgMutex.Lock()
+		fmt.Fprintf(os.Stderr, "mk: recipe for '%s' kept in %s\n", target, f.Name())
+		mkMsgMutex.Unlock()
+	}
 	return f.Name(), nil
 }
 
+// removeRecipeFile removes a file made by writeRecipeFile, unless
+// -keep-temp-files was given.
 func removeRecipeFile(path string) {
+	if keepTempFiles {
+		return
+	}
 	recipeFilesMu.Lock()
 	defer recipeFilesMu.Unlock()
 	os.Remove(path)

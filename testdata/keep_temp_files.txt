@@ -1,0 +1,22 @@
+# -keep-temp-files keeps every recipe file written for the F attribute, and
+# says where each one is.
+mkdir tmp
+env TMPDIR=$WORK/tmp
+
+mk -keep-temp-files -p 1 ok
+stderr '^mk: recipe for ''ok'' kept in .*/tmp/mk-ok-'
+exec ls tmp
+stdout '^mk-ok-'
+
+# kept for failed recipes too
+! mk -keep-temp-files -p 1 fails
+stderr 'recipe for ''fails'' kept in .*/tmp/mk-fails-'
+exec ls tmp
+stdout '^mk-fails-'
+
+-- mkfile --
+ok:VF:
+	echo fine
+
+fails:VF:
+	false

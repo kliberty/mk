@@ -88,6 +88,7 @@ _See the [man page](mk.1.md) for full documentation, and the
 | `-I` | Interactive: prompt before executing rules |
 | `-q` | Quiet: don't print recipes before executing |
 | `-dot` | Print dependency graph in Graphviz dot format |
+| `-keep-temp-files` | Keep the temporary files of `F` recipes (debugging) |
 | `-color` | Force color output on/off |
 | `-shell prog` | Default shell (default: `sh -e`) |
 

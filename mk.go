@@ -448,6 +448,7 @@ func main() {
 	flag.BoolVar(&opts.explain, "e", false, "explain why targets are out of date")
 	flag.BoolVar(&quiet, "q", false, "don't print recipes before executing them")
 	flag.BoolVar(&dotOutput, "dot", false, "print dependency graph in graphviz dot format and exit")
+	flag.BoolVar(&keepTempFiles, "keep-temp-files", false, "keep the temporary files of F recipes, for debugging")
 	flag.BoolVar(&color, "color", isatty.IsTerminal(os.Stdout.Fd()), "turn color on/off")
 	flag.StringVar(&defaultShell, "shell", "sh -e", "default shell to use if none are specified via $shell")
 	// TODO(rjk): P9P mk command line compatability.

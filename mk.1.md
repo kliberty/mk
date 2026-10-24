@@ -70,6 +70,10 @@ Options are:
 -dot
 :   Print dependency graph in graphviz dot format and exit.
 
+-keep-temp-files
+:   For debugging: keep the temporary file written for each recipe
+    with the F attribute, instead of removing it, and print its path.
+
 -color
 :   Force color output on/off.
 
@@ -331,7 +335,7 @@ F
     The recipe can then read mk's standard input, and the shell's
     error messages name the file, which includes the target's name.
     The file is created in `$TMPDIR` and removed afterwards, including
-    when mk is interrupted. With S, the program must accept a script
+    when mk is interrupted (unless `-keep-temp-files` is given). With S, the program must accept a script
     path as its last argument (for example `Spython3` or `Sawk -f`).
 
 N

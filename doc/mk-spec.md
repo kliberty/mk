@@ -316,7 +316,8 @@ command (or the `S` program): `sh -e /tmp/mk-target-123`,
 standard input is mk's own, so commands in it can read input; without `F`,
 a command that reads standard input consumes the rest of the recipe. The file
 is removed when the recipe finishes, and on SIGINT, SIGTERM or SIGHUP, after
-which mk ends with the same signal.
+which mk ends with the same signal. With `-keep-temp-files` it is kept instead,
+and its path printed to stderr.
 
 ```
 config:VF:
@@ -580,6 +581,8 @@ in the mkfile.
 - `-C dir` — Change to `dir` before reading mkfile
 - `-I` — Interactive mode: prompt before executing rules
 - `-dot` — Print dependency graph in Graphviz dot format and exit
+- `-keep-temp-files` — Keep the temporary file of every `F` recipe, even on
+  success or interrupt, and print each file's path to stderr (for debugging)
 - `-color` — Enable/disable color output (default: auto-detect TTY)
 - `-shell cmd` — Default shell (default: `sh -e`)
 - `-e` — Explain why targets are out of date (prints staleness decisions to stderr)
@@ -598,7 +601,7 @@ in the mkfile.
 | Regex syntax | Plan 9 `regexp(6)` | Go RE2 (no backreferences or lookaheads) |
 | Parallelism | `$NPROC` env var only | `-p` flag > `$NPROC` env > NumCPU |
 | Additional attributes | — | `X` (exclusive execution), `F` (recipe as a file) |
-| Additional flags | — | `-p`, `-l`, `-C`, `-I`, `-dot`, `-color`, `-shell` |
+| Additional flags | — | `-p`, `-l`, `-C`, `-I`, `-dot`, `-color`, `-shell`, `-keep-temp-files` |
 
 ## Appendix B: Examples
 
