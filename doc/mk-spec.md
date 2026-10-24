@@ -532,6 +532,13 @@ to the targets given on the command line (empty if none). Both are set
 before the mkfile is read, replacing any values inherited from a parent mk,
 so `mk $MKFLAGS` in a recipe repeats the current flags and overrides.
 
+The flags `-f`, `-C` and `-w` and their values are left out of `$MKFLAGS`,
+because they apply only to the current run: which mkfile to read, where to
+run, and what to pretend changed. GNU make leaves out its `-f`, `-C` and `-W`
+for the same reason.
+
+**[DIVERGENCE]** Plan 9 mk includes `-f file` in `$MKFLAGS`.
+
 Flags may appear before, after or between these arguments: `mk all -n` is
 the same as `mk -n all`. The argument `--` ends flag parsing; every argument
 after it is an override or target, even one beginning with `-`.

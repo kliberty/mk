@@ -166,8 +166,10 @@ argument to mk. A variable assignment argument overrides the
 first (but not any subsequent) assignment to that variable.
 
 The variable MKFLAGS contains the options mk was called with, as
-written (including option values, such as the file in `-f file`),
-followed by any `var=value` assignments. MKARGS contains the targets
+written (including option values, such as the job count in `-p 4`),
+followed by any `var=value` assignments. The options `-f`, `-C` and
+`-w`, which apply only to this run, are left out, as GNU make does with
+its `-f`, `-C` and `-W`. MKARGS contains the targets
 named on the command line, and is empty if none were. Both are set
 before the mkfile is read, so they can be used in assignments, and a
 recursive call can pass the same options on:

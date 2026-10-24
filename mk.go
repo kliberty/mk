@@ -422,6 +422,31 @@ func parseArgs(fs *flag.FlagSet, args []string) (flags, rest []string) {
 	}
 }
 
+// localFlags are the flags that describe only the current run (which mkfile
+// to read, which directory to run in, which target to pretend changed), so
+// they are left out of $MKFLAGS. GNU make likewise does not pass on its -f,
+// -C and -W.
+var localFlags = map[string]bool{"f": true, "C": true, "w": true}
+
+// propagatedFlags returns flagArgs (flag arguments as returned by parseArgs)
+// without the localFlags and their values. These flags all take a value,
+// given either in the same argument ("-f=file") or in the next ("-f file").
+func propagatedFlags(flagArgs []string) []string {
+	var out []string
+	for i := 0; i < len(flagArgs); i++ {
+		name := strings.TrimLeft(flagArgs[i], "-")
+		name, _, hasValue := strings.Cut(name, "=")
+		if localFlags[name] {
+			if !hasValue {
+				i++ // skip the separate value
+			}
+			continue
+		}
+		out = append(out, flagArgs[i])
+	}
+	return out
+}
+
 func main() {
 	var directory string
 	var mkfilepath string
@@ -502,7 +527,7 @@ func main() {
 	// and $MKARGS the targets given on the command line. They are set before
 	// the mkfile is read, so its assignments can use them, and replace any
 	// values inherited from a parent mk.
-	env["MKFLAGS"] = append(append([]string{}, flagArgs...), assignments...)
+	env["MKFLAGS"] = append(propagatedFlags(flagArgs), assignments...)
 	env["MKARGS"] = append([]string{}, targets...)
 
 	rs := parse(string(input), mkfilepath, abspath, env)
