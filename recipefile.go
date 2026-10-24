@@ -135,6 +135,21 @@ func removeRecipeFile(path string) {
 	delete(recipeFiles, path)
 }
 
+// removeAllRecipeFiles removes every remaining recipe file and private
+// directory, unless -keep-temp-files was given. It is called before mk exits
+// early, since deferred removals do not run then.
+func removeAllRecipeFiles() {
+	if keepTempFiles {
+		return
+	}
+	recipeFilesMu.Lock()
+	defer recipeFilesMu.Unlock()
+	for path := range recipeFiles {
+		os.RemoveAll(path)
+		delete(recipeFiles, path)
+	}
+}
+
 // removeRecipeFilesOnSignal removes any remaining recipe files if mk is
 // interrupted or terminated, then lets the signal end mk as it otherwise
 // would have.

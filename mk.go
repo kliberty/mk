@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -370,6 +372,11 @@ func staleByProgram(n *node, e *edge, prereqs []*node, explain bool) bool {
 	for _, p := range prereqs {
 		args := append(append([]string{}, e.r.command[1:]...), n.name, p.name)
 		if _, err := subprocess(e.r.command[0], args, os.Environ(), strings.NewReader(""), false); err != nil {
+			// A non-zero exit means out of date; failing to run at all is an error.
+			var exitErr *exec.ExitError
+			if !errors.As(err, &exitErr) {
+				mkError(fmt.Sprintf("P attribute program for %s: %v", n.name, err))
+			}
 			if explain {
 				fmt.Fprintf(os.Stderr, "mk: %s out of date via %s (P attribute)\n", n.name, p.name)
 			}
@@ -381,6 +388,7 @@ func staleByProgram(n *node, e *edge, prereqs []*node, explain bool) bool {
 
 func mkError(msg string) {
 	mkPrintError(msg)
+	removeAllRecipeFiles()
 	os.Exit(1)
 }
 

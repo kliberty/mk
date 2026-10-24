@@ -133,7 +133,7 @@ func parsePipeInclude(p *parser, t token) parserStateFun {
 		// TODO(rjk): determine what env should be in comparison with p9p.
 		output, err := subprocess(args[0], args[1:], nil, strings.NewReader(""), true)
 		if err != nil {
-			p.basicErrorAtToken("subprocess include failed", t)
+			p.basicErrorAtToken(fmt.Sprintf("subprocess include failed: %v", err), t)
 		}
 
 		parseInto(output, prettyPipeIncludeName(args), p.rules, p.path)

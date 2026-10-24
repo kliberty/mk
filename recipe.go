@@ -5,10 +5,8 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
-	"log"
 	"maps"
 	"os"
 	"os/exec"
@@ -174,9 +172,10 @@ func dorecipe(n *node, e *edge, opts *buildOpts, nproc int) error {
 //	stdin: The program's standard input
 //	captureOut: If true, capture and return the program's stdout rather than echoing it.
 //
-// Returns the captured stdout (empty if captureOut is false) and, if the
-// program exited with a non-zero status, the *exec.ExitError describing it.
-// Failing to start the program at all is fatal.
+// Returns the captured stdout (empty if captureOut is false) and an error if
+// the program could not be started or exited with a non-zero status (an
+// *exec.ExitError). Callers decide whether that is fatal; exiting here would
+// skip their cleanup, such as removing an F recipe's file.
 func subprocess(program string,
 	args []string,
 	env []string,
@@ -196,11 +195,5 @@ func subprocess(program string,
 	}
 
 	err := cmd.Run()
-	if err != nil {
-		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) {
-			log.Fatal(err)
-		}
-	}
 	return stdout.String(), err
 }

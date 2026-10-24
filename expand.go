@@ -340,7 +340,7 @@ func expandBackQuoted(input string, vars map[string][]string) ([]string, int) {
 
 	output, err := subprocess(shell, shellargs, env, strings.NewReader(cmd), true)
 	if err != nil {
-		mkError(fmt.Sprintf("backtick expansion failed: `%s`", cmd))
+		mkError(fmt.Sprintf("backtick expansion failed: `%s`: %v", cmd, err))
 	}
 
 	parts := make([]string, 0)
