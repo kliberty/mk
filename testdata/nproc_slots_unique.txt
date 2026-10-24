@@ -1,0 +1,16 @@
+# $nproc identifies a job slot: jobs running at the same time never share
+# one. a finishes first and c starts while b is still running, so c must
+# reuse a's slot rather than share b's.
+mk -q -p 2 -f mkfile
+exec sh -c 'test "$(cat a.slot)" = "$(cat c.slot)" && test "$(cat b.slot)" != "$(cat c.slot)"'
+
+-- mkfile --
+all:V: a b c
+a:V:
+	echo $nproc > a.slot
+	sleep 0.2
+b:V:
+	echo $nproc > b.slot
+	sleep 1
+c:V: a
+	echo $nproc > c.slot

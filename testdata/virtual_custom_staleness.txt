@@ -1,0 +1,27 @@
+# P attribute on a virtual rule: the program decides whether the recipe runs,
+# called as "prog target prereq", as for file targets.
+mk -p 1 -f mkfile -e fresh
+stdout 'checked fresh dep'
+! stdout 'RAN'
+stderr 'mk: fresh is up to date'
+
+mk -p 1 -f mkfile stale
+stdout 'checked stale dep'
+stdout '^RAN stale$'
+
+# With no prerequisites there is nothing to compare, so the recipe always runs.
+mk -p 1 -f mkfile noprereq
+! stdout 'checked'
+stdout '^RAN noprereq$'
+
+-- mkfile --
+fresh:VPsh check.sh 0: dep
+	echo RAN $target
+stale:VPsh check.sh 1: dep
+	echo RAN $target
+noprereq:VPsh check.sh 0:
+	echo RAN $target
+-- dep --
+-- check.sh --
+echo checked "$2" "$3"
+exit "$1"

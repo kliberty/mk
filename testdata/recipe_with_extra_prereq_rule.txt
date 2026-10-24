@@ -1,0 +1,19 @@
+# A rule that only adds prerequisites must not hide the target's recipe,
+# whichever order the two rules appear in.
+mk -p 1 -f mkfile after
+stdout '^RECIPE after: a b$'
+
+mk -p 1 -f mkfile before
+stdout '^RECIPE before: b a$'
+
+-- mkfile --
+after:V: a
+	echo RECIPE $target: $prereq
+after:V: b
+
+before:V: b
+before:V: a
+	echo RECIPE $target: $prereq
+
+a b:V:
+	true

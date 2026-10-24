@@ -1,0 +1,13 @@
+# mk substitutes $name in a recipe before the shell runs it, using its own
+# variables and the environment, so an environment variable can override a
+# variable the recipe sets itself. $$name is passed to the shell as $name.
+env name=alice
+mk -p 1 -f mkfile
+stdout '^plain alice$'
+stdout '^escaped bob$'
+
+-- mkfile --
+greet:V:
+	name=bob
+	echo plain $name
+	echo escaped $$name

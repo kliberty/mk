@@ -57,6 +57,23 @@ type node struct {
 	mutex     sync.Mutex        // exclusivity for the status variable
 	listeners []chan nodeStatus // channels to notify of completion
 	flags     nodeFlag          // bitwise combination of node flags
+
+	// checkedRequired is set once the node has been checked with required
+	// set. After that, a nodeStatusNop result is final.
+	checkedRequired bool
+}
+
+// needsVisit reports whether mkNode should (re)visit the node. A node found
+// to need no work (nodeStatusNop) is revisited only if it is now required and
+// was not when it was last checked. Must be called with n.mutex held.
+func (n *node) needsVisit(required bool) bool {
+	switch n.status {
+	case nodeStatusReady:
+		return true
+	case nodeStatusNop:
+		return required && !n.checkedRequired
+	}
+	return false
 }
 
 // Update a node's timestamp and 'exists' flag.

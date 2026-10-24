@@ -93,6 +93,11 @@ Two forms:
 
 In recipes, `\$` also produces a literal `$` (shell escaping).
 
+Because mk substitutes recipe variables before the shell runs (see §3.2), a
+variable the recipe sets for itself must be written `$$name` (or `\$name`).
+A plain `$name` is replaced by mk's value for `name`, including one taken
+from the environment, which then overrides the recipe's own assignment.
+
 If a variable is not defined in mk's variable table or the environment, the
 reference is preserved literally (e.g., `$undefined` remains `$undefined` in
 the output). This differs from make, which expands undefined variables to the
@@ -135,7 +140,8 @@ Variable values have this precedence (highest first):
 ### 3.2 Evaluation Timing
 
 - Assignment values are evaluated **when read** (eagerly).
-- Recipe bodies are evaluated **when executed** (lazily, by the shell).
+- Recipe bodies are evaluated **when executed** (lazily): mk substitutes
+  variables just before running the recipe, then hands it to the shell.
 - This means the last assignment wins for recipes, but earlier assignments
   affect subsequent rule headers.
 
@@ -277,6 +283,11 @@ target:Pcheck-stale arg: prereq1 prereq2
 
 For each prerequisite, mk runs `check-stale arg target prereqN`. If the
 command exits **non-zero**, the target is considered out of date.
+
+`P` also works on virtual (`V`) rules, where there is no timestamp to
+compare: the program alone decides whether the recipe runs, and receives the
+target name as a label rather than a file. A virtual rule with `P` but no
+prerequisites always runs, since there is nothing to compare.
 
 #### U (Update)
 
@@ -483,6 +494,10 @@ text on standard input (recipes cannot read their own stdin).
 The default shell is `sh` invoked with `-e` (exit on error). The `E` attribute
 removes the `-e` flag for a specific rule.
 
+Flags in the shell command (from `-shell`, the `shell` variable or the `S`
+attribute) are passed to the shell exactly as written. Because the recipe
+arrives on standard input, the command should not include `-c`.
+
 In Plan 9 mk, the `MKSHELL` variable selects between pluggable shell
 implementations (`sh` and `rc`), each with its own quoting and escaping rules.
 Plan9port added the `S` attribute for per-rule shell override.
@@ -544,7 +559,6 @@ in the mkfile.
 - `-p N` — Set parallelism level (default: `$NPROC` env, then number of CPUs)
 - `-l N` — Max times a specific rule can be applied (default: 1)
 - `-C dir` — Change to `dir` before reading mkfile
-- `-F` — Keep shell flags (e.g., `-e`) even when the shell is invoked with no recipe arguments. By default, flags like `-e` are dropped when the shell has no command arguments, since some shells (like `sh -e`) treat bare flag invocations differently from `sh -e -c 'cmd'`. Use `-F` for shells like `rc` where flags like `-v` are meaningful without arguments.
 - `-I` — Interactive mode: prompt before executing rules
 - `-dot` — Print dependency graph in Graphviz dot format and exit
 - `-color` — Enable/disable color output (default: auto-detect TTY)
@@ -565,7 +579,7 @@ in the mkfile.
 | Regex syntax | Plan 9 `regexp(6)` | Go RE2 (no backreferences or lookaheads) |
 | Parallelism | `$NPROC` env var only | `-p` flag > `$NPROC` env > NumCPU |
 | Additional attributes | — | `X` (exclusive execution) |
-| Additional flags | — | `-p`, `-l`, `-C`, `-F`, `-I`, `-dot`, `-color`, `-shell` |
+| Additional flags | — | `-p`, `-l`, `-C`, `-I`, `-dot`, `-color`, `-shell` |
 
 ## Appendix B: Examples
 

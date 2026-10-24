@@ -1,7 +1,7 @@
 # Color output with quiet attribute uses Unicode ellipsis
 mk -color -n -f mkfile
 stdout '\x1b\[34m\x1b\[1m\x1b\[4mall\x1b\[0m'
-stdout '…'
+stdout '…\x1b\[0m$'
 
 -- mkfile --
 all:VQ:

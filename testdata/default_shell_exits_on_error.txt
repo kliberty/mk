@@ -1,0 +1,9 @@
+# The default shell is "sh -e": a recipe stops at its first failing command,
+# and the failure is reported as mk's exit status.
+! mk -p 1 -f mkfile
+! stdout '^after$'
+
+-- mkfile --
+all:V:
+	false
+	echo after

@@ -1,0 +1,21 @@
+# Flags in the shell command are passed to the shell as written, from the
+# -shell flag, the shell variable and the S attribute alike.
+mk -p 1 -shell 'sh -x' -f mkfile flag
+stderr '\+ echo from-flag'
+
+mk -p 1 -f mkfile var
+stderr '\+ echo from-var'
+
+mk -p 1 -f mkfile attr
+stderr '\+ echo from-attr'
+
+-- mkfile --
+flag:V:
+	echo from-flag
+
+attr:VS"sh -x":
+	echo from-attr
+
+shell = sh -x
+var:V:
+	echo from-var

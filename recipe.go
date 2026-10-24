@@ -65,8 +65,8 @@ func printIndented(out io.Writer, s string, ind int) {
 	}
 }
 
-// Execute a recipe.
-func dorecipe(n *node, e *edge, opts *buildOpts, nproc int) bool {
+// Execute a recipe. Returns nil on success, or the error the shell exited with.
+func dorecipe(n *node, e *edge, opts *buildOpts, nproc int) error {
 	vars := maps.Clone(opts.vars)
 	vars["target"] = []string{n.name}
 	vars["nproc"] = []string{fmt.Sprintf("%d", nproc)}
@@ -108,10 +108,11 @@ func dorecipe(n *node, e *edge, opts *buildOpts, nproc int) bool {
 	vars["newmember"] = []string{}
 
 	// Setup the shell in vars.
-	sh, args := expandShell(defaultShell, []string{})
-	if len(e.r.shell) > 0 {
-		sh, args = expandShell(e.r.shell[0], e.r.shell[1:])
+	shellWords := e.r.shell
+	if len(shellWords) == 0 {
+		shellWords = []string{defaultShell}
 	}
+	sh, args := shellCommand(shellWords)
 	// E attribute: don't pass -e to the shell (allow recipe to continue on errors).
 	// Allocate a new slice to avoid mutating e.r.shell's backing array.
 	if e.r.attributes.nonstop {
@@ -130,7 +131,7 @@ func dorecipe(n *node, e *edge, opts *buildOpts, nproc int) bool {
 
 	mkPrintRecipe(n.name, input, e.r.attributes.quiet)
 	if opts.dryrun {
-		return true
+		return nil
 	}
 
 	// Construct the execution environment for this recipe.
@@ -143,14 +144,14 @@ func dorecipe(n *node, e *edge, opts *buildOpts, nproc int) bool {
 		env = append(env, k+"="+strings.Join(v, " "))
 	}
 
-	_, success := subprocess(
+	_, err := subprocess(
 		sh,
 		args,
 		env,
 		input,
 		false)
 
-	return success
+	return err
 }
 
 // Execute a subprocess (typically a recipe).
@@ -161,14 +162,15 @@ func dorecipe(n *node, e *edge, opts *buildOpts, nproc int) bool {
 //	input: String piped into the program's stdin
 //	captureOut: If true, capture and return the program's stdout rather than echoing it.
 //
-// Returns (output, success) where output is the captured stdout (empty if
-// captureOut is false) and success indicates a zero exit code.
+// Returns the captured stdout (empty if captureOut is false) and, if the
+// program exited with a non-zero status, the *exec.ExitError describing it.
+// Failing to start the program at all is fatal.
 func subprocess(program string,
 	args []string,
 	env []string,
 	input string,
 	captureOut bool,
-) (string, bool) {
+) (string, error) {
 	cmd := exec.Command(program, args...)
 	cmd.Env = env
 	cmd.Stdin = strings.NewReader(input)
@@ -184,10 +186,9 @@ func subprocess(program string,
 	err := cmd.Run()
 	if err != nil {
 		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			return stdout.String(), false
+		if !errors.As(err, &exitErr) {
+			log.Fatal(err)
 		}
-		log.Fatal(err)
 	}
-	return stdout.String(), true
+	return stdout.String(), err
 }

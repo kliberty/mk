@@ -6,7 +6,7 @@
 mk - maintain (make) related files
 
 # SYNOPSIS
-`mk [-f mkfile] [-C dir] [-p N] [-l N] [-w target] [-shell prog] [-s prog] [-color] [-F] [-n] [-t] [-r] [-a] [-k] [-i] [-I] [-e] [-q] [-dot] [target ...] [var=value ...]`
+`mk [-f mkfile] [-C dir] [-p N] [-l N] [-w target] [-shell prog] [-s prog] [-color] [-n] [-t] [-r] [-a] [-k] [-i] [-I] [-e] [-q] [-dot] [target ...] [var=value ...]`
 
 
 # DESCRIPTION
@@ -73,12 +73,11 @@ Options are:
 -color
 :   Force color output on/off.
 
--F
-:   Don't drop shell arguments when no further arguments are specified.
-
 -shell *prog*
 :   Default shell to use if none are specified via `$shell`. Default is `sh -e`.
     This can also be set using the `shell` variable in `mkfile`.
+    Flags are passed to the shell as written. Recipes are supplied on
+    standard input, so the shell command should not include `-c`.
 
 ## The mkfile
 
@@ -262,6 +261,22 @@ recipe is executed.  For example:
 
 will compile b.c into foo, if a.c is newer than foo.
 
+`mk` substitutes variable references in a recipe itself, before
+passing it to the shell (or the `S` program), using its own variables
+and its environment. A reference `mk` cannot resolve is left for the
+shell. As a result, a variable that the recipe sets for itself can be
+overridden by an environment variable of the same name. Write
+references to such variables as `$$name` (or `\$name`), which `mk`
+passes to the shell as `$name`:
+
+    clean:V:
+            dir=build
+            rm -rf $$dir
+
+Here `$$dir` always refers to the shell variable set on the line
+before. A plain `$dir` would be replaced by the value of `dir` in
+mk's environment, if there is one.
+
 ### Including other files
 
 The contents of other files can be included using `<`.
@@ -323,6 +338,8 @@ P
     `prog target prereq` and should return a null exit status
     if and only if the target is up to date with respect to the prerequisite.
     Date stamps are still propagated in the normal way.
+    With the V attribute, the program alone decides whether the recipe
+    runs; a virtual rule without prerequisites always runs.
     This attribute is not compatible with the S attribute.
 
 Q

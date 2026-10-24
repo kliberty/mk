@@ -25,10 +25,6 @@ var (
 	// Default shell to use if none specified via $shell.
 	defaultShell string
 
-	// Do not drop shell arguments when calling with no further arguments
-	// This works around `sh -c commands...` being a thing, but allows the `rc -v commands...` argument-less flags
-	dontDropArgs bool
-
 	// Lock on standard out, messages don't get interleaved too much.
 	mkMsgMutex sync.Mutex
 
@@ -49,6 +45,7 @@ var (
 type scheduler struct {
 	allowed   int
 	running   int
+	inUse     []bool // inUse[i] is true while slot i ($nproc = i) is taken
 	cond      *sync.Cond
 	exclusive sync.Mutex
 }
@@ -69,20 +66,28 @@ type buildOpts struct {
 
 // Wait until there is an available subprocess slot.
 // Returns the 0-based slot number assigned to this job.
+// reserve waits for a free job slot, takes the lowest-numbered one and
+// returns its number, which the recipe sees as $nproc.
 func (s *scheduler) reserve() int {
 	s.cond.L.Lock()
 	for s.running >= s.allowed {
 		s.cond.Wait()
 	}
-	slot := s.running
+	slot := 0
+	for s.inUse[slot] {
+		slot++
+	}
+	s.inUse[slot] = true
 	s.running++
 	s.cond.L.Unlock()
 	return slot
 }
 
 // Free up another subprocess to run.
-func (s *scheduler) finish() {
+// finish releases a slot taken by reserve.
+func (s *scheduler) finish(slot int) {
 	s.cond.L.Lock()
+	s.inUse[slot] = false
 	s.running--
 	s.cond.Signal()
 	s.cond.L.Unlock()
@@ -129,12 +134,10 @@ func mkNodePrereqs(g *graph, prereqs []*node, opts *buildOpts, required bool) no
 		status := nodeStatusDone
 		for i := range prereqs {
 			prereqs[i].mutex.Lock()
-			switch prereqs[i].status {
-			case nodeStatusReady, nodeStatusNop:
-				prereqs[i].mutex.Unlock()
+			visit := prereqs[i].needsVisit(required)
+			prereqs[i].mutex.Unlock()
+			if visit {
 				mkNode(g, prereqs[i], opts, required)
-			default:
-				prereqs[i].mutex.Unlock()
 			}
 			prereqs[i].mutex.Lock()
 			s := prereqs[i].status
@@ -152,11 +155,11 @@ func mkNodePrereqs(g *graph, prereqs []*node, opts *buildOpts, required bool) no
 	// build prereqs that need building
 	for i := range prereqs {
 		prereqs[i].mutex.Lock()
-		switch prereqs[i].status {
-		case nodeStatusReady, nodeStatusNop:
+		if prereqs[i].needsVisit(required) {
 			go mkNode(g, prereqs[i], opts, required)
-			fallthrough
-		case nodeStatusStarted:
+			prereqs[i].listeners = append(prereqs[i].listeners, prereqstat)
+			pending++
+		} else if prereqs[i].status == nodeStatusStarted {
 			prereqs[i].listeners = append(prereqs[i].listeners, prereqstat)
 			pending++
 		}
@@ -192,9 +195,9 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 	if n.status != nodeStatusReady && n.status != nodeStatusNop {
 		n.mutex.Unlock()
 		return
-	} else {
-		n.status = nodeStatusStarted
 	}
+	n.status = nodeStatusStarted
+	n.checkedRequired = n.checkedRequired || required
 	n.mutex.Unlock()
 
 	// when finished, notify the listeners
@@ -219,16 +222,19 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 		return
 	}
 
-	// There is exactly one rule among the edges (all edges share the same
-	// rule pointer, set by applyrules; newedge never creates edges with r==nil).
+	// Several rules may contribute prerequisites to a target, but at most one
+	// of them has a recipe (ambiguous() enforces this). Use that rule's edge,
+	// so a rule that only adds prerequisites can't hide the recipe. If no rule
+	// has a recipe, use the last edge. Every edge has a rule (newedge never
+	// creates one without).
 	var prereqs []*node
 	var e *edge
-	for i := range n.prereqs {
-		if n.prereqs[i].r != nil {
-			e = n.prereqs[i]
+	for _, pe := range n.prereqs {
+		if e == nil || e.r.recipe == "" {
+			e = pe
 		}
-		if n.prereqs[i].v != nil {
-			prereqs = append(prereqs, n.prereqs[i].v)
+		if pe.v != nil {
+			prereqs = append(prereqs, pe.v)
 		}
 	}
 
@@ -238,7 +244,19 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 	}
 
 	uptodate := true
-	if !e.r.attributes.virtual {
+	if e.r.attributes.virtual {
+		// A virtual target has no timestamp, so it is always out of date,
+		// unless a P program is there to compare it with its prerequisites
+		// (as in Plan 9 mk).
+		if len(e.r.command) > 0 && len(prereqs) > 0 {
+			uptodate = !staleByProgram(n, e, prereqs, opts.explain)
+		} else {
+			if opts.explain && n.name != "" { // skip the root dummy node
+				fmt.Fprintf(os.Stderr, "mk: %s is virtual\n", n.name)
+			}
+			uptodate = false
+		}
+	} else {
 		n.updateTimestamp(opts.rebuildall)
 		if !n.exists && required {
 			if opts.explain {
@@ -246,20 +264,7 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 			}
 			uptodate = false
 		} else if len(e.r.command) > 0 && (n.exists || required) {
-			// P attribute: use custom program for staleness checking.
-			// Uses OS environment (not mk vars) because the program is an
-			// external tool (e.g. cmp -s), not a recipe.
-			for i := range prereqs {
-				args := append(append([]string{}, e.r.command[1:]...), n.name, prereqs[i].name)
-				_, ok := subprocess(e.r.command[0], args, os.Environ(), "", false)
-				if !ok {
-					if opts.explain {
-						fmt.Fprintf(os.Stderr, "mk: %s out of date via %s (P attribute)\n", n.name, prereqs[i].name)
-					}
-					uptodate = false
-					break
-				}
-			}
+			uptodate = !staleByProgram(n, e, prereqs, opts.explain)
 		} else if n.exists || required {
 			for i := range prereqs {
 				if n.t.Before(prereqs[i].t) {
@@ -275,11 +280,6 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 				}
 			}
 		}
-	} else {
-		if opts.explain && n.name != "" { // skip the root dummy node
-			fmt.Fprintf(os.Stderr, "mk: %s is virtual\n", n.name)
-		}
-		uptodate = false
 	}
 
 	_, isrebuildtarget := opts.rebuildTargets[n.name]
@@ -325,13 +325,19 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 				nproc = sched.reserve()
 			}
 
-			if !dorecipe(n, e, opts, nproc) {
+			if err := dorecipe(n, e, opts, nproc); err != nil {
 				finalstatus = nodeStatusFailed
 				opts.failed.Store(true)
+				msg := fmt.Sprintf("recipe for '%s' failed: %v", n.name, err)
 				// D attribute: delete the target file when the recipe fails.
 				if e.r.attributes.delFailed {
-					os.Remove(n.name)
+					if os.Remove(n.name) == nil {
+						msg += fmt.Sprintf(", deleted '%s'", n.name)
+					}
 				}
+				mkMsgMutex.Lock()
+				mkPrintError(msg)
+				mkMsgMutex.Unlock()
 			}
 			// U attribute: force timestamp so dependents see the target as updated
 			// even if the recipe didn't modify the file.
@@ -344,15 +350,33 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 			if e.r.attributes.exclusive {
 				sched.finishExclusive()
 			} else {
-				sched.finish()
+				sched.finish(nproc)
 			}
 		}
 	} else if finalstatus != nodeStatusFailed {
-		if opts.explain && uptodate && !e.r.attributes.virtual {
+		if opts.explain && uptodate {
 			fmt.Fprintf(os.Stderr, "mk: %s is up to date\n", n.name)
 		}
 		finalstatus = nodeStatusNop
 	}
+}
+
+// staleByProgram reports whether a P attribute's program says n is out of date
+// with respect to any of its prerequisites. The program is run as
+// "prog [args] target prereq" for each prerequisite in turn, and a non-zero
+// exit means out of date. It uses the OS environment (not mk variables)
+// because it is an external tool such as cmp -s, not a recipe.
+func staleByProgram(n *node, e *edge, prereqs []*node, explain bool) bool {
+	for _, p := range prereqs {
+		args := append(append([]string{}, e.r.command[1:]...), n.name, p.name)
+		if _, err := subprocess(e.r.command[0], args, os.Environ(), "", false); err != nil {
+			if explain {
+				fmt.Fprintf(os.Stderr, "mk: %s out of date via %s (P attribute)\n", n.name, p.name)
+			}
+			return true
+		}
+	}
+	return false
 }
 
 func mkError(msg string) {
@@ -361,39 +385,42 @@ func mkError(msg string) {
 }
 
 func mkPrintError(msg string) {
+	msg = "error: " + strings.TrimRight(msg, "\n")
 	if color {
-		os.Stderr.WriteString(ansiTermRed)
+		msg = ansiTermRed + msg + ansiTermDefault
 	}
-	fmt.Fprintf(os.Stderr, "error: %s\n", msg)
-	if color {
-		os.Stderr.WriteString(ansiTermDefault)
-	}
+	// Reset the colour before the newline: a newline printed while a colour
+	// is active can leave that colour behind in the terminal.
+	os.Stderr.WriteString(msg + "\n")
 }
 
 func mkPrintRecipe(target string, recipe string, quiet bool) {
-	mkMsgMutex.Lock()
+	var b strings.Builder
 	if !color {
-		fmt.Printf("%s: ", target)
+		fmt.Fprintf(&b, "%s: ", target)
 	} else {
-		fmt.Printf("%s%s%s → %s",
+		fmt.Fprintf(&b, "%s%s%s → %s",
 			ansiTermBlue+ansiTermBright+ansiTermUnderline, target,
 			ansiTermDefault, ansiTermBlue)
 	}
 	if quiet {
 		if !color {
-			fmt.Println("...")
+			b.WriteString("...")
 		} else {
-			fmt.Println("…")
+			b.WriteString("…")
 		}
 	} else {
-		printIndented(os.Stdout, recipe, len(target)+3)
-		if len(recipe) == 0 {
-			os.Stdout.WriteString("\n")
-		}
+		printIndented(&b, strings.TrimRight(recipe, "\n"), len(target)+3)
 	}
+	// Reset the colour before the final newline: a newline printed while a
+	// colour is active can leave that colour behind in the terminal.
 	if color {
-		os.Stdout.WriteString(ansiTermDefault)
+		b.WriteString(ansiTermDefault)
 	}
+	b.WriteString("\n")
+
+	mkMsgMutex.Lock()
+	os.Stdout.WriteString(b.String())
 	mkMsgMutex.Unlock()
 }
 
@@ -423,12 +450,20 @@ func main() {
 	flag.BoolVar(&dotOutput, "dot", false, "print dependency graph in graphviz dot format and exit")
 	flag.BoolVar(&color, "color", isatty.IsTerminal(os.Stdout.Fd()), "turn color on/off")
 	flag.StringVar(&defaultShell, "shell", "sh -e", "default shell to use if none are specified via $shell")
-	flag.BoolVar(&dontDropArgs, "F", false, "don't drop shell arguments when no further arguments are specified")
 	// TODO(rjk): P9P mk command line compatability.
 	flag.Parse()
 
 	// Resolve parallelism: -p flag > $NPROC env > NumCPU
-	if sched.allowed < 0 {
+	pGiven := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "p" {
+			pGiven = true
+		}
+	})
+	if pGiven && sched.allowed < 1 {
+		mkError(fmt.Sprintf("invalid -p value: %d (must be at least 1)", sched.allowed))
+	}
+	if !pGiven {
 		if nproc := os.Getenv("NPROC"); nproc != "" {
 			if n, err := strconv.Atoi(nproc); err == nil && n > 0 {
 				sched.allowed = n
@@ -440,6 +475,7 @@ func main() {
 		}
 	}
 	sched.cond = sync.NewCond(&sync.Mutex{})
+	sched.inUse = make([]bool, sched.allowed)
 
 	if directory != "" {
 		err := os.Chdir(directory)

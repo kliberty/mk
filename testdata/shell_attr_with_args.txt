@@ -3,7 +3,7 @@ mk -n -f mkfile
 cmp stdout expected
 
 -- mkfile --
-all:VS"sh -e" -c:
+all:VS"sh -e" -x:
 	echo hello
 -- expected --
 all: echo hello
