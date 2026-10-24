@@ -369,7 +369,7 @@ func mkNode(g *graph, n *node, opts *buildOpts, required bool) {
 func staleByProgram(n *node, e *edge, prereqs []*node, explain bool) bool {
 	for _, p := range prereqs {
 		args := append(append([]string{}, e.r.command[1:]...), n.name, p.name)
-		if _, err := subprocess(e.r.command[0], args, os.Environ(), "", false); err != nil {
+		if _, err := subprocess(e.r.command[0], args, os.Environ(), strings.NewReader(""), false); err != nil {
 			if explain {
 				fmt.Fprintf(os.Stderr, "mk: %s out of date via %s (P attribute)\n", n.name, p.name)
 			}

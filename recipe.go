@@ -144,13 +144,21 @@ func dorecipe(n *node, e *edge, opts *buildOpts, nproc int) error {
 		env = append(env, k+"="+strings.Join(v, " "))
 	}
 
-	_, err := subprocess(
-		sh,
-		args,
-		env,
-		input,
-		false)
+	// Normally the recipe is the shell's standard input. With the F
+	// attribute, it is written to a file whose path is passed as the last
+	// argument, and the recipe gets mk's standard input instead.
+	var stdin io.Reader = strings.NewReader(input)
+	if e.r.attributes.recipeFile {
+		path, err := writeRecipeFile(n.name, input)
+		if err != nil {
+			return err
+		}
+		defer removeRecipeFile(path)
+		args = append(args[:len(args):len(args)], path)
+		stdin = os.Stdin
+	}
 
+	_, err := subprocess(sh, args, env, stdin, false)
 	return err
 }
 
@@ -159,7 +167,7 @@ func dorecipe(n *node, e *edge, opts *buildOpts, nproc int) error {
 // Args:
 //
 //	program: Program path or name located in PATH
-//	input: String piped into the program's stdin
+//	stdin: The program's standard input
 //	captureOut: If true, capture and return the program's stdout rather than echoing it.
 //
 // Returns the captured stdout (empty if captureOut is false) and, if the
@@ -168,12 +176,12 @@ func dorecipe(n *node, e *edge, opts *buildOpts, nproc int) error {
 func subprocess(program string,
 	args []string,
 	env []string,
-	input string,
+	stdin io.Reader,
 	captureOut bool,
 ) (string, error) {
 	cmd := exec.Command(program, args...)
 	cmd.Env = env
-	cmd.Stdin = strings.NewReader(input)
+	cmd.Stdin = stdin
 	cmd.Stderr = os.Stderr
 
 	var stdout bytes.Buffer

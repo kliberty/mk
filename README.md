@@ -105,6 +105,10 @@ mean.txt:Sjulia: input.txt
             mean(map(parseint, eachline(open("$prereq")))))
 ```
 
+With the `F` attribute, the recipe is passed as a temporary file instead of
+on standard input, so it can read input itself, and the program receives a
+script path (`:FSpython3:`, `:FSawk -f:`).
+
 ## License
 
 [BSD 2-clause](LICENSE).

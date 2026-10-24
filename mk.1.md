@@ -324,6 +324,16 @@ D
 E
 :   Continue execution if the recipe draws errors.
 
+F
+:   The recipe is written to a temporary file, whose path is passed
+    as the last argument to the shell (or to the program given by
+    the S attribute), instead of being supplied as standard input.
+    The recipe can then read mk's standard input, and the shell's
+    error messages name the file, which includes the target's name.
+    The file is created in `$TMPDIR` and removed afterwards, including
+    when mk is interrupted. With S, the program must accept a script
+    path as its last argument (for example `Spython3` or `Sawk -f`).
+
 N
 :   If there is no recipe, the target has its time updated.
 

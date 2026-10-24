@@ -248,6 +248,7 @@ The `S` attribute is present in plan9port mk but not in the original Plan 9 pape
 
 **[DIVERGENCE]** Our implementation adds:
 - `X` — Exclusive: recipe acquires all parallel job slots before executing
+- `F` — File: recipe is passed to the shell as a file, not on stdin (see below)
 
 #### N (No-recipe)
 
@@ -304,6 +305,24 @@ The attribute consumes the remaining attribute text:
 ```
 all:VS"python3":
     import sys; print(sys.version)
+```
+
+#### F (File) **[DIVERGENCE]**
+
+The recipe, after variable substitution, is written to a temporary file in
+`$TMPDIR`, and the file's path is appended as the last argument to the shell
+command (or the `S` program): `sh -e /tmp/mk-target-123`,
+`python3 /tmp/mk-target-123`, `awk -f /tmp/mk-target-123`. The recipe's
+standard input is mk's own, so commands in it can read input; without `F`,
+a command that reads standard input consumes the rest of the recipe. The file
+is removed when the recipe finishes, and on SIGINT, SIGTERM or SIGHUP, after
+which mk ends with the same signal.
+
+```
+config:VF:
+    printf 'name: '
+    read name
+    echo "name = $$name" > config
 ```
 
 #### X (Exclusive) **[DIVERGENCE]**
@@ -578,7 +597,7 @@ in the mkfile.
 | Recipe display | `front()` truncates to 5 fields | No truncation |
 | Regex syntax | Plan 9 `regexp(6)` | Go RE2 (no backreferences or lookaheads) |
 | Parallelism | `$NPROC` env var only | `-p` flag > `$NPROC` env > NumCPU |
-| Additional attributes | — | `X` (exclusive execution) |
+| Additional attributes | — | `X` (exclusive execution), `F` (recipe as a file) |
 | Additional flags | — | `-p`, `-l`, `-C`, `-I`, `-dot`, `-color`, `-shell` |
 
 ## Appendix B: Examples
