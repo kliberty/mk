@@ -92,6 +92,7 @@ the options.
 | `-q` | Quiet: don't print recipes before executing |
 | `-dot` | Print dependency graph in Graphviz dot format |
 | `-keep-temp-files` | Keep the temporary files of `F` recipes (debugging) |
+| `-list` | List targets, patterns and variables (with `##` descriptions), then exit |
 | `-color` | Force color output on/off |
 | `-shell prog` | Default shell (default: `sh -e`) |
 

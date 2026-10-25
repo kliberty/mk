@@ -6,7 +6,7 @@
 mk - maintain (make) related files
 
 # SYNOPSIS
-`mk [-f mkfile] [-C dir] [-p N] [-l N] [-w target] [-shell prog] [-color] [-n] [-t] [-r] [-a] [-k] [-i] [-I] [-e] [-q] [-dot] [-keep-temp-files] [--] [target ...] [var=value ...]`
+`mk [-f mkfile] [-C dir] [-p N] [-l N] [-w target] [-shell prog] [-color] [-n] [-t] [-r] [-a] [-k] [-i] [-I] [-e] [-q] [-dot] [-keep-temp-files] [-list] [--] [target ...] [var=value ...]`
 
 
 # DESCRIPTION
@@ -78,6 +78,18 @@ Options are:
 :   For debugging: keep the temporary file written for each recipe
     with the F attribute, instead of removing it, and print its path.
 
+-list
+:   Print what the mkfile offers, then exit without building: the
+    targets that can be built (rules with a recipe, and virtual
+    rules), with the default target marked; meta-rule patterns; and
+    the variables it assigns, with their values. A variable is shown
+    as `NAME ?= value` if the environment can set it, and as
+    `NAME = value` if only the command line can. Descriptions come from
+    `##` comments (see below). When standard output is not a terminal,
+    the list is plain, one name per line, for scripts and shell
+    completion: the targets, then each variable as `NAME=`. Reading the
+    mkfile still runs its backquoted commands and `<|` includes.
+
 -color
 :   Force color output on/off.
 
@@ -98,6 +110,14 @@ begin with white space.  A rule takes the form
 
     target: prereq1 prereq2
             recipe using prereq1, prereq2 to build target
+
+A comment beginning with `##` after a rule or an assignment, on the
+same line, is its description, shown by `-list`:
+
+    test:V: prog  ## Run the test suite
+    CC ?= gcc     ## C compiler
+
+A comment on a line of its own is never a description.
 
 A line with `#` in its first column comments that line out of the
 mkfile, even between the lines of a recipe: the recipe continues,

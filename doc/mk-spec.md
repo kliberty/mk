@@ -61,6 +61,9 @@ forming a single token: `foo'bar'"baz"` → `foobarbaz`.
 A `#` character outside quotes begins a comment. Everything from `#` to the
 end of the line is discarded.
 
+A comment beginning with `##` after a rule or assignment on the same line is
+that statement's description, shown by `-list` (§12.3).
+
 If the last non-whitespace character before the newline is `\`,
 the comment-ending newline is treated as a continuation (the next line is also
 discarded).
@@ -658,11 +661,52 @@ the GNU convention of accepting flags anywhere.
 - `-C dir` — Change to `dir` before reading mkfile
 - `-I` — Interactive mode: prompt before executing rules
 - `-dot` — Print dependency graph in Graphviz dot format and exit
+- `-list` — Print the mkfile's targets, meta-rule patterns and assigned
+  variables, then exit (see §12.3)
 - `-keep-temp-files` — Keep the temporary file of every `F` recipe, even on
   success or interrupt, and print each file's path to stderr (for debugging)
 - `-color` — Enable/disable color output (default: auto-detect TTY)
 - `-shell cmd` — Default shell (default: `sh -e`)
 - `-e` — Explain why targets are out of date (prints staleness decisions to stderr)
+
+### 12.3 Listing (-list) **[DIVERGENCE]**
+
+`mk -list` parses the mkfile, applying command-line overrides, and prints
+what it offers instead of building. Parsing still runs backquoted commands
+and `<|` includes.
+
+- **Targets:** the targets of non-meta rules that have a recipe or are
+  virtual, each once, in the order they first appear. Rules that only add
+  prerequisites are not listed. The default target is marked `(default)`.
+- **Patterns:** the targets of such meta-rules (`%.o`, `hello-%`, regular
+  expressions), listed separately.
+- **Variables:** each variable assigned in the mkfile, in order of first
+  assignment, with its current value (shortened if long). It is shown as
+  `NAME ?= value` if every assignment to it is `?=`, so the environment can
+  set it, and as `NAME = value` otherwise. A note marks a value that came
+  from the command line or the environment.
+
+A target, pattern or variable's description is the text of a `##` comment on
+the line of its rule or assignment (the first one given, if several rules
+name the same target). A comment on a line of its own is never a
+description.
+
+On a terminal, each section is printed with its entries and descriptions
+aligned. When standard output is not a terminal, the output is a plain list
+for scripts and shell completion: target names, one per line, then each
+variable as `NAME=`; patterns and descriptions are omitted.
+
+```
+$ mk -list
+Targets:
+  all   Build everything (default)
+  test  Run the test suite
+Patterns:
+  hello-%  Greet someone
+Variables (set with mk NAME=value; ?= ones also from the environment):
+  CC ?= gcc            C compiler
+  PREFIX = /usr/local  Install location
+```
 
 ## Appendix A: Known Divergences Summary
 
@@ -679,7 +723,7 @@ the GNU convention of accepting flags anywhere.
 | Parallelism | `$NPROC` env var only | `-p` flag > `$NPROC` env > NumCPU |
 | Flag placement | Flags must precede targets | Flags anywhere; `--` ends flags |
 | Additional attributes | — | `X` (exclusive execution), `F` (recipe as a file) |
-| Additional flags | — | `-p`, `-l`, `-C`, `-I`, `-dot`, `-color`, `-shell`, `-keep-temp-files` |
+| Additional flags | — | `-p`, `-l`, `-C`, `-I`, `-dot`, `-color`, `-shell`, `-keep-temp-files`, `-list` |
 
 ## Appendix B: Examples
 
