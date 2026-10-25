@@ -461,7 +461,7 @@ func parseArgs(fs *flag.FlagSet, args []string) (flags, rest []string) {
 // to read, which directory to run in, which target to pretend changed), so
 // they are left out of $MKFLAGS. GNU make likewise does not pass on its -f,
 // -C and -W.
-var localFlags = map[string]bool{"f": true, "C": true, "w": true}
+var localFlags = map[string]bool{"f": true, "C": true, "w": true, "list": true}
 
 // propagatedFlags returns flagArgs (flag arguments as returned by parseArgs)
 // without the localFlags and their values. These flags all take a value,
@@ -489,6 +489,7 @@ func main() {
 	var shallowrebuild bool
 	var quiet bool
 	var dotOutput bool
+	var listOutput bool
 	var opts buildOpts
 
 	flag.StringVar(&directory, "C", "", "directory to change in to")
@@ -506,6 +507,7 @@ func main() {
 	flag.BoolVar(&opts.explain, "e", false, "explain why targets are out of date")
 	flag.BoolVar(&quiet, "q", false, "don't print recipes before executing them")
 	flag.BoolVar(&dotOutput, "dot", false, "print dependency graph in graphviz dot format and exit")
+	flag.BoolVar(&listOutput, "list", false, "list the mkfile's targets, patterns and variables, and exit")
 	flag.BoolVar(&keepTempFiles, "keep-temp-files", false, "keep the temporary files of F recipes, for debugging")
 	flag.BoolVar(&color, "color", isatty.IsTerminal(os.Stdout.Fd()), "turn color on/off")
 	flag.StringVar(&defaultShell, "shell", "sh -e", "default shell to use if none are specified via $shell")
@@ -592,16 +594,14 @@ func main() {
 		}
 	}
 
+	if listOutput {
+		writeList(os.Stdout, rs, isatty.IsTerminal(os.Stdout.Fd()))
+		return
+	}
+
 	// build the first non-meta rule in the makefile, if none are given explicitly
 	if len(targets) == 0 {
-		for i := range rs.rules {
-			if !rs.rules[i].ismeta {
-				for j := range rs.rules[i].targets {
-					targets = append(targets, rs.rules[i].targets[j].spat)
-				}
-				break
-			}
-		}
+		targets = defaultTargets(rs)
 	}
 
 	if len(targets) == 0 {

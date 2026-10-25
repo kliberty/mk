@@ -1,0 +1,43 @@
+# -list prints the mkfile's targets and variables instead of building.
+# When stdout is not a terminal (as here) it is a plain list, one per line,
+# for scripts and shell completion: targets, then variables as NAME=.
+mk -list
+cmp stdout plain.want
+! stderr .
+
+# a target or flag after -list does not build anything either
+mk -list clean
+cmp stdout plain.want
+
+-- mkfile --
+CC ?= gcc ## C compiler
+PREFIX = /usr/local ## Install location
+OBJ = main.o util.o
+
+all:V: prog ## Build everything
+
+prog: $OBJ ## The program
+	$CC -o $target $prereq
+
+# Not a description: a comment on its own line.
+test:V: prog
+	./prog --test
+
+clean:V: ## Remove build output
+	rm -f prog *.o
+
+%.o: %.c
+	$CC -c $stem.c
+
+hello-%:V: ## Greet someone
+	echo hello $stem
+
+prog: config.h
+-- plain.want --
+all
+prog
+test
+clean
+CC=
+PREFIX=
+OBJ=

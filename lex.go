@@ -33,6 +33,7 @@ const (
 	tokenRecipe
 	tokenAssignU    // =U= unexport assignment
 	tokenAssignCond // ?= assignment, made only if the variable is unset
+	tokenDoc        // "## text" after a rule or assignment: its description
 )
 
 func (typ tokenType) String() string {
@@ -57,6 +58,8 @@ func (typ tokenType) String() string {
 		return "[AssignU]"
 	case tokenAssignCond:
 		return "[AssignCond]"
+	case tokenDoc:
+		return "[Doc]"
 	}
 	return "[MysteryToken]"
 }
@@ -330,6 +333,9 @@ func lexComment(l *lexer) lexerStateFun {
 		}
 	}()
 	l.skip() // '#'
+	// "##" after something else on the line is that line's description.
+	doc := !wholeLine && !l.barewords && l.peek() == '#'
+	line, textStart := l.line, l.pos+1
 	for {
 		l.skipUntil("\n")
 		// Check if the character before the newline is a backslash.
@@ -339,6 +345,14 @@ func lexComment(l *lexer) lexerStateFun {
 			continue
 		}
 		break
+	}
+	if doc {
+		text := l.input[textStart:l.pos]
+		if i := strings.IndexByte(text, '\n'); i >= 0 {
+			text = text[:i] // only the first line of a continued comment
+		}
+		text = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(text), "\\"))
+		l.output <- token{tokenDoc, text, line, 0}
 	}
 	return lexTopLevel
 }

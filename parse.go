@@ -20,6 +20,7 @@ type parser struct {
 	rules       *ruleSet // current ruleSet
 	unexported  bool     // next assignment is =U= (unexported)
 	conditional bool     // next assignment is ?= (only if unset)
+	doc         token    // the last "##" description seen
 }
 
 // Pretty errors.
@@ -35,6 +36,22 @@ func (p *parser) basicErrorAtToken(what string, found token) {
 
 func (p *parser) basicErrorAtLine(what string, line int) {
 	mkError(fmt.Sprintf("%s:%d: syntax error: %s\n", p.name, line, what))
+}
+
+// takeDoc returns the "##" description of the statement in p.tokenbuf, if
+// it has one, and forgets it. A description belongs to a statement if it is
+// on one of the statement's lines.
+func (p *parser) takeDoc() string {
+	if p.doc.typ != tokenDoc || len(p.tokenbuf) == 0 {
+		return ""
+	}
+	first, last := p.tokenbuf[0].line, p.tokenbuf[len(p.tokenbuf)-1].line
+	if p.doc.line < first || p.doc.line > last {
+		return ""
+	}
+	doc := p.doc.val
+	p.doc = token{}
+	return doc
 }
 
 // Accept a token for use in the current statement being parsed.
@@ -82,6 +99,10 @@ func parseInto(input string, name string, rules *ruleSet, path string) {
 		if t.typ == tokenError {
 			p.basicErrorAtLine(l.errmsg, t.line)
 			break
+		}
+		if t.typ == tokenDoc {
+			p.doc = t
+			continue
 		}
 
 		state = state(p, t)
@@ -254,6 +275,8 @@ func parseAssignment(p *parser, t token) parserStateFun {
 		if err != nil {
 			p.basicErrorAtToken(err.what, err.where)
 		}
+		decls := p.rules.varDecls
+		decls[len(decls)-1].doc = p.takeDoc()
 		p.unexported = false
 		p.conditional = false
 		p.clear()
@@ -416,6 +439,11 @@ func parseRecipe(p *parser, t token) parserStateFun {
 		r.recipe = stripIndentation(t.val, t.col)
 	}
 
+	if len(p.tokenbuf) > 0 {
+		r.file = p.name
+		r.line = p.tokenbuf[0].line
+	}
+	r.doc = p.takeDoc()
 	p.rules.add(r)
 	p.clear()
 

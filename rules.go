@@ -60,6 +60,15 @@ type rule struct {
 	ismeta     bool      // is this a meta rule
 	file       string    // file where the rule is defined
 	line       int       // line number on which the rule is defined
+	doc        string    // description, from a "##" comment on the rule line
+}
+
+// varDecl records an assignment in the mkfile, for -list.
+type varDecl struct {
+	name        string
+	conditional bool   // ?=
+	applied     bool   // the assignment set the variable (it was not skipped)
+	doc         string // description, from a "##" comment on the line
 }
 
 // Identical rule headers: same targets, attributes, and prerequisites.
@@ -115,6 +124,8 @@ type ruleSet struct {
 	// overrides are the variables assigned on the command line. The
 	// mkfile's assignments to them are skipped.
 	overrides map[string]bool
+	// varDecls are the mkfile's assignments, in order.
+	varDecls []varDecl
 }
 
 // Read attributes for an array of strings, updating the rule.
@@ -254,7 +265,9 @@ func (rs *ruleSet) executeAssignment(ts []token, unexported, conditional bool) *
 	// A ?= assignment is likewise skipped if the variable is already set, by
 	// the environment, the command line or an earlier assignment.
 	_, isSet := rs.vars[assignee]
-	if rs.overrides[assignee] || (conditional && isSet) {
+	skip := rs.overrides[assignee] || (conditional && isSet)
+	rs.varDecls = append(rs.varDecls, varDecl{name: assignee, conditional: conditional, applied: !skip})
+	if skip {
 		if unexported {
 			rs.unexportedVars[assignee] = true
 		}
