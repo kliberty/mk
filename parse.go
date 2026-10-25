@@ -13,12 +13,13 @@ import (
 )
 
 type parser struct {
-	l          *lexer   // underlying lexer
-	name       string   // name of the file being parsed
-	path       string   // full path of the file being parsed
-	tokenbuf   []token  // tokens consumed on the current statement
-	rules      *ruleSet // current ruleSet
-	unexported bool     // next assignment is =U= (unexported)
+	l           *lexer   // underlying lexer
+	name        string   // name of the file being parsed
+	path        string   // full path of the file being parsed
+	tokenbuf    []token  // tokens consumed on the current statement
+	rules       *ruleSet // current ruleSet
+	unexported  bool     // next assignment is =U= (unexported)
+	conditional bool     // next assignment is ?= (only if unset)
 }
 
 // Pretty errors.
@@ -156,6 +157,8 @@ func parsePipeInclude(p *parser, t token) parserStateFun {
 		fallthrough
 	case tokenAssign:
 		fallthrough
+	case tokenAssignCond:
+		fallthrough
 	case tokenWord:
 		p.tokenbuf = append(p.tokenbuf, t)
 
@@ -224,6 +227,10 @@ func parseEqualsOrTarget(p *parser, t token) parserStateFun {
 		p.unexported = true
 		return parseAssignment
 
+	case tokenAssignCond:
+		p.conditional = true
+		return parseAssignment
+
 	case tokenWord:
 		p.push(t)
 		return parseTargets
@@ -243,11 +250,12 @@ func parseEqualsOrTarget(p *parser, t token) parserStateFun {
 func parseAssignment(p *parser, t token) parserStateFun {
 	switch t.typ {
 	case tokenNewline:
-		err := p.rules.executeAssignment(p.tokenbuf, p.unexported)
+		err := p.rules.executeAssignment(p.tokenbuf, p.unexported, p.conditional)
 		if err != nil {
 			p.basicErrorAtToken(err.what, err.where)
 		}
 		p.unexported = false
+		p.conditional = false
 		p.clear()
 		return parseTopLevel
 

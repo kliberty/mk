@@ -125,7 +125,7 @@ func TestExecuteAssignment(t *testing.T) {
 				targetrules:    map[string][]int{},
 				unexportedVars: map[string]bool{},
 			}
-			err := rs.executeAssignment(tt.tokens, false)
+			err := rs.executeAssignment(tt.tokens, false, false)
 			if tt.err {
 				if err == nil {
 					t.Error("expected error, got nil")

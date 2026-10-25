@@ -176,6 +176,15 @@ argument to mk. A variable assignment argument is set before the
 mkfile is read, and every assignment to that variable in the mkfile
 is skipped, so values computed from it in the mkfile use it too.
 
+An assignment of the form
+
+    var ?= value
+
+assigns only if var is not already set, whether by the environment,
+the command line or an earlier assignment, and the value is not
+evaluated otherwise. It gives a default that the environment can
+replace, which a plain `=` assignment would override.
+
 The variable MKFLAGS contains the options mk was called with, as
 written (including option values, such as the job count in `-p 4`),
 followed by any `var=value` assignments. The options `-f`, `-C` and

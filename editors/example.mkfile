@@ -4,6 +4,7 @@ CFLAGS = -O2 -Wall
 SRC = main.c util.c
 OBJ = ${SRC:%.c=%.o}
 TOKEN=U=not-exported
+PREFIX ?= /usr/local
 FILES = `ls *.c`
 RCFILES = `{ls *.c}
 SC = VQ

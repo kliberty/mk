@@ -226,7 +226,7 @@ type assignmentError struct {
 
 // Parse and execute assignment operation.
 // If unexported is true, the variable is marked as not exported to recipe environments.
-func (rs *ruleSet) executeAssignment(ts []token, unexported bool) *assignmentError {
+func (rs *ruleSet) executeAssignment(ts []token, unexported, conditional bool) *assignmentError {
 	assignee := ts[0].val
 	if !isValidVarName(assignee) {
 		return &assignmentError{
@@ -251,7 +251,10 @@ func (rs *ruleSet) executeAssignment(ts []token, unexported bool) *assignmentErr
 
 	// A variable set on the command line keeps that value: the assignment
 	// is skipped, without evaluating it. As in Plan 9 mk, =U= still applies.
-	if rs.overrides[assignee] {
+	// A ?= assignment is likewise skipped if the variable is already set, by
+	// the environment, the command line or an earlier assignment.
+	_, isSet := rs.vars[assignee]
+	if rs.overrides[assignee] || (conditional && isSet) {
 		if unexported {
 			rs.unexportedVars[assignee] = true
 		}

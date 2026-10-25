@@ -93,7 +93,7 @@
     },
     "assignment": {
       "name": "meta.assignment.mk",
-      "begin": "^([A-Za-z_][A-Za-z0-9_]*)[ \\t]*(=)(?:(U)(=))?",
+      "begin": "^([A-Za-z_][A-Za-z0-9_]*)[ \\t]*(\\?=|=)(?:(U)(=))?",
       "beginCaptures": {
         "1": {
           "name": "variable.other.definition.mk"

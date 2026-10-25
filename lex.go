@@ -31,7 +31,8 @@ const (
 	tokenColon
 	tokenAssign
 	tokenRecipe
-	tokenAssignU // =U= unexport assignment
+	tokenAssignU    // =U= unexport assignment
+	tokenAssignCond // ?= assignment, made only if the variable is unset
 )
 
 func (typ tokenType) String() string {
@@ -54,6 +55,8 @@ func (typ tokenType) String() string {
 		return "[Recipe]"
 	case tokenAssignU:
 		return "[AssignU]"
+	case tokenAssignCond:
+		return "[AssignCond]"
 	}
 	return "[MysteryToken]"
 }
@@ -277,6 +280,10 @@ func lexTopLevel(l *lexer) lexerStateFun {
 		return lexColon
 	case '=':
 		return lexAssign
+	case '?':
+		if l.peekN(1) == '=' {
+			return lexAssignCond
+		}
 	case '"':
 		return lexDoubleQuotedWord
 	case '\'':
@@ -291,6 +298,13 @@ func lexTopLevel(l *lexer) lexerStateFun {
 func lexColon(l *lexer) lexerStateFun {
 	l.next()
 	l.emit(tokenColon)
+	return lexTopLevel
+}
+
+func lexAssignCond(l *lexer) lexerStateFun {
+	l.next() // consume '?'
+	l.next() // consume '='
+	l.emit(tokenAssignCond)
 	return lexTopLevel
 }
 
@@ -455,7 +469,15 @@ func commentedOutLines(s string) (int, bool) {
 }
 
 func lexBareWord(l *lexer) lexerStateFun {
-	l.acceptUntil(nonBareRunes)
+	// Accept up to a non-bare rune, or "?=", which is an assignment
+	// operator even with no space before it (as in "X?=1").
+	for l.pos < len(l.input) && !strings.ContainsRune(nonBareRunes, l.peek()) &&
+		!(l.peek() == '?' && l.peekN(1) == '=') {
+		l.next()
+	}
+	if l.peek() == eof {
+		l.lexerror(fmt.Sprintf("end of file encountered while looking for one of: %s", nonBareRunes))
+	}
 	c := l.peek()
 	if c == '"' {
 		return lexDoubleQuotedWord

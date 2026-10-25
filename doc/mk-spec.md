@@ -122,6 +122,7 @@ If none of these appears, it's a syntax error.
 ```
 name = value
 name =U= value
+name ?= value
 ```
 
 The left side must be a single word (the variable name). The right side is
@@ -130,13 +131,24 @@ split into words which become the variable's value (a list).
 The `U` attribute between `=` signs marks the variable as unexported
 (not placed in the environment for recipes).
 
+`name ?= value` assigns only if `name` is not already set: by the
+environment, the command line, or an earlier assignment. When it is set, the
+value is not evaluated (so backquotes in it do not run). This lets the
+environment supply a value that the mkfile otherwise defaults. `?=` is also
+recognised with no space before it (`name?=value`).
+
+**[DIVERGENCE]** `?=` is not in Plan 9 mk or plan9port, where an assignment
+in the mkfile always replaces a value from the environment.
+
 ### 3.1 Precedence
 
 Variable values have this precedence (highest first):
 1. Command-line assignment (`mk name=value`)
-2. Assignment statement in mkfile
+2. Assignment statement in mkfile (`=`)
 3. Inherited from environment
 4. Implicitly set by mk
+5. Default assignment in mkfile (`?=`), which applies only if nothing above
+   has set the variable
 
 ### 3.2 Evaluation Timing
 

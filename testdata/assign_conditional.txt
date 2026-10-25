@@ -1,0 +1,30 @@
+# VAR ?= value assigns only if VAR is not already set: by the environment,
+# the command line, or an earlier assignment. A plain = always assigns.
+mk -p 1
+stdout '^CC=gcc PREFIX=/usr/local X=first Y=y$'
+
+# the environment can set a ?= variable, but not a = one
+env CC=clang
+env PREFIX=/opt
+mk -p 1
+stdout '^CC=clang PREFIX=/usr/local X=first Y=y$'
+
+# the command line sets either kind
+mk -p 1 CC=tcc PREFIX=/srv
+stdout '^CC=tcc PREFIX=/srv X=first Y=y$'
+
+# a skipped ?= is not evaluated, so its backquotes do not run
+env SLOW=already
+mk -p 1
+! stderr 'evaluated'
+
+-- mkfile --
+CC ?= gcc
+PREFIX = /usr/local
+X = first
+X ?= second
+Y?=y
+SLOW ?= `echo evaluated >&2`
+
+show:V:
+	echo CC=$CC PREFIX=$PREFIX X=$X Y=$Y
