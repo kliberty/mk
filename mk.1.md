@@ -6,7 +6,7 @@
 mk - maintain (make) related files
 
 # SYNOPSIS
-`mk [-f mkfile] [-C dir] [-p N] [-l N] [-w target] [-shell prog] [-s prog] [-color] [-n] [-t] [-r] [-a] [-k] [-i] [-I] [-e] [-q] [-dot] [target ...] [var=value ...]`
+`mk [-f mkfile] [-C dir] [-p N] [-l N] [-w target] [-shell prog] [-color] [-n] [-t] [-r] [-a] [-k] [-i] [-I] [-e] [-q] [-dot] [-keep-temp-files] [--] [target ...] [var=value ...]`
 
 
 # DESCRIPTION
