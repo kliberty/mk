@@ -593,7 +593,13 @@ Non-flag arguments to mk are either variable overrides or targets:
 
 - If an argument contains `=` and the left side is a valid variable name,
   it is a **variable override**: `mk CC=gcc` sets `$CC` to `gcc`.
-  Command-line overrides have the highest precedence (see §3.1).
+  Command-line overrides have the highest precedence (see §3.1). They are
+  set before the mkfile is read, and the mkfile's assignments to the same
+  variable are skipped (not evaluated), so anything the mkfile computes from
+  the variable, in assignments or rule headers, uses the override. An `=U=`
+  on a skipped assignment still applies. This matches plan9port; the Plan 9
+  manual's wording, that an override replaces only the first assignment,
+  does not match its implementation.
 - Otherwise, the argument is a **target** to build.
 
 If no targets are specified, mk builds the targets of the first non-metarule

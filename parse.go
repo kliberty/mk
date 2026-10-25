@@ -52,11 +52,19 @@ type parserStateFun func(*parser, token) parserStateFun
 
 // Parse a mkfile, returning a new ruleSet.
 func parse(input string, name string, path string, env map[string][]string) *ruleSet {
+	return parseWithOverrides(input, name, path, env, nil)
+}
+
+// parseWithOverrides parses a mkfile in which the variables named in
+// overrides were set on the command line: their values in env are kept, and
+// the mkfile's assignments to them are skipped.
+func parseWithOverrides(input, name, path string, env map[string][]string, overrides map[string]bool) *ruleSet {
 	rules := &ruleSet{
 		vars:           env,
 		rules:          make([]rule, 0),
 		targetrules:    make(map[string][]int),
 		unexportedVars: make(map[string]bool),
+		overrides:      overrides,
 	}
 	parseInto(input, name, rules, path)
 	return rules

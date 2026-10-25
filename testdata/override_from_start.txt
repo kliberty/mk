@@ -1,0 +1,31 @@
+# A command-line assignment is in place before the mkfile is read, and the
+# mkfile's own assignments to that variable are skipped (as in plan9port).
+# So values computed while reading the mkfile see the override too.
+mk -p 1 CC=clang
+stdout '^prereq is build-clang$'
+stdout '^CC=clang COMPILE=clang -O2 LATER=clang$'
+
+# without an override, the mkfile's values apply as before
+mk -p 1
+stdout '^prereq is build-gcc$'
+stdout '^CC=gcc COMPILE=gcc -O2 LATER=gcc$'
+
+# an =U= on a skipped assignment still applies: SECRET is not exported
+mk -p 1 SECRET=x env
+stdout '^secret=\[\]$'
+
+-- mkfile --
+CC = gcc
+COMPILE = $CC -O2
+CC = gcc
+LATER = $CC
+SECRET=U=hidden
+
+show:V: build-$CC
+	echo CC=$CC COMPILE=$COMPILE LATER=$LATER
+
+env:V:
+	echo secret=[$$SECRET]
+
+build-%:V:
+	echo prereq is $target

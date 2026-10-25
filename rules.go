@@ -112,6 +112,9 @@ type ruleSet struct {
 	// map a target to an array of indexes into rules
 	targetrules    map[string][]int
 	unexportedVars map[string]bool // variables marked with =U= (not exported to recipe env)
+	// overrides are the variables assigned on the command line. The
+	// mkfile's assignments to them are skipped.
+	overrides map[string]bool
 }
 
 // Read attributes for an array of strings, updating the rule.
@@ -244,6 +247,15 @@ func (rs *ruleSet) executeAssignment(ts []token, unexported bool) *assignmentErr
 		} else {
 			input = append(input, ts[i].val)
 		}
+	}
+
+	// A variable set on the command line keeps that value: the assignment
+	// is skipped, without evaluating it. As in Plan 9 mk, =U= still applies.
+	if rs.overrides[assignee] {
+		if unexported {
+			rs.unexportedVars[assignee] = true
+		}
+		return nil
 	}
 
 	// expanded variables

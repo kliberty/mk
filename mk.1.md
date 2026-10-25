@@ -172,8 +172,9 @@ unless U, the only legal attribute attr, is present.  The
 initial value of a variable is taken from (in increasing
 order of precedence) the default values below, mk's environment,
 the mkfiles, and any command line assignment as an
-argument to mk. A variable assignment argument overrides the
-first (but not any subsequent) assignment to that variable.
+argument to mk. A variable assignment argument is set before the
+mkfile is read, and every assignment to that variable in the mkfile
+is skipped, so values computed from it in the mkfile use it too.
 
 The variable MKFLAGS contains the options mk was called with, as
 written (including option values, such as the job count in `-p 4`),

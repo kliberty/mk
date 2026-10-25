@@ -575,17 +575,21 @@ func main() {
 	env["MKFLAGS"] = append(propagatedFlags(flagArgs), assignments...)
 	env["MKARGS"] = append([]string{}, targets...)
 
-	rs := parse(string(input), mkfilepath, abspath, env)
+	// Command-line assignments are set before the mkfile is read, so values
+	// computed while reading it see them, and the mkfile's own assignments
+	// to those variables are skipped (as in Plan 9 mk).
+	overrides := make(map[string]bool)
+	for _, arg := range assignments {
+		i := strings.Index(arg, "=")
+		env[arg[:i]] = expand(arg[i+1:], env, true)
+		overrides[arg[:i]] = true
+	}
+
+	rs := parseWithOverrides(string(input), mkfilepath, abspath, env, overrides)
 	if quiet {
 		for i := range rs.rules {
 			rs.rules[i].attributes.quiet = true
 		}
-	}
-
-	// Apply command-line variable overrides.
-	for _, arg := range assignments {
-		i := strings.Index(arg, "=")
-		rs.vars[arg[:i]] = expand(arg[i+1:], rs.vars, true)
 	}
 
 	// build the first non-meta rule in the makefile, if none are given explicitly
